@@ -1,13 +1,13 @@
 {
   "name": "bytewise",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Binary serialization of arbitrarily complex structures that sort bytewise",
   "main": "bytewise.js",
   "dependencies": {
     "es6-shim": "~0.6"
   },
   "devDependencies": {
-    "tap": "~0.4"
+    "tap": "*"
   },
   "scripts": {
     "test": "tap test/"
@@ -25,5 +25,5 @@
     "indexeddb"
   ],
   "author": "Dean Landolt",
-  "license": "BSD"
+  "license": "MIT"
 }
