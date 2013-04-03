@@ -55,6 +55,8 @@ function encode(value) {
   if (value instanceof Date) {
     var timestamp = value.valueOf();
     if (timestamp !== timestamp) throw new Error('Invalid Date cannot be serialized');
+    // Normalize -0 values to 0
+    if (Object.is(timestamp, -0)) timestamp = 0;
     var type = isNegative(timestamp) ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
     return tag(type, encodeNumber(timestamp));
   }
