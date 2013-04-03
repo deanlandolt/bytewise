@@ -1,24 +1,25 @@
-# bytewise
+bytewise
+========
 
-Defines a total order of possible data structures allowed in a keyspace. This order happens to be a superset of both the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This should make it easy to embed the useful approaches afforded by structured indexing into systems with fast but dumb bytewise comparators such as the default sort in leveldb.
+This library defines a total order of possible data structures allowed in a keyspace. This order happens to be a superset of both the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This should make it easy to embed the useful approaches afforded by structured indexing into systems with fast but dumb bytewise comparators such as the default sort in leveldb.
 
 
 ## Collation of Supported Structures
 
 This is the sort order of the various structures that can be encoded:
 
-  null
-  false
-  true
-  number (numeric)
-  date (numeric, epoch offset)
-  buffer (bitwise)
-  string (lexicographic)
-  array (componentwise)
-  map (componentwise key/value pairs)
-  set (componentwise, values sorted)
-  function (stringified lexicographic)
-  undefined
+* `null`
+* `false`
+* `true`
+* `number` (numeric)
+* `date` (numeric, epoch offset)
+* `buffer` (bitwise)
+* `string` (lexicographic)
+* `array` (componentwise)
+* `map` (componentwise key/value pairs)
+* `set` (componentwise, values sorted)
+* `function` (stringified lexicographic)
+* `undefined`
 
 
 These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in a way that carefully preserves the desired sort behavior even in the precense of structural nested. Negative numbers are stored as a different type from positive numbers, inverted to ensure numbers with a larger magnitude come first. Positive and negative `Infinity` can also be encoded. Values of `Date` types are stored similarly to numbers, but as in indexeddb, they sort after all numbers, including `Infinity`. Binary data can be stored in the raw, and is sorted before string data. Then come the collection types -- arrays, objects (as well as other non-string-keyed maps), sets and even functions.
