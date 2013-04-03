@@ -1,0 +1,29 @@
+{
+  "name": "bytewise",
+  "version": "0.1.0",
+  "description": "Binary serialization of arbitrarily complex structures that sort bytewise",
+  "main": "bytewise.js",
+  "dependencies": {
+    "es6-shim": "~0.6"
+  },
+  "devDependencies": {
+    "tap": "~0.4"
+  },
+  "scripts": {
+    "test": "tap test/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deanlandolt/bytewise.git"
+  },
+  "keywords": [
+    "binary",
+    "collation",
+    "serialization",
+    "leveldb",
+    "couchdb",
+    "indexeddb"
+  ],
+  "author": "Dean Landolt",
+  "license": "BSD"
+}
