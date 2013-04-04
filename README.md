@@ -15,7 +15,7 @@ This is the sort order of the various structures that can be encoded:
 * `Date` (numeric, epoch offset)
 * `Buffer` (bitwise)
 * `String` (lexicographic)
-* `Set` (componentwise, values sorted)
+* `Set` (componentwise with elements sorted)
 * `Array` (componentwise)
 * `Map` (componentwise key/value pairs)
 * `Function` (stringified lexicographic)
@@ -60,11 +60,11 @@ This collation should be easy to extend to indexeddb as well. It is specifically
   // Negative numbers are stored as positive numbers, but with a lower type tag and their bits inverted
   assert.equal(hexEncode(-12345), '42bf37e37fffffffff');
 
-  // Floating point numbers are stored just like integers
+  // All numbers, integer or floating point, are stored as IEEE 754 doubles
   assert.equal(hexEncode(1.2345), '453ff3c083126e978d');
   assert.equal(hexEncode(-1.2345), '42c00c3f7ced916872');
 
-  // Serialization preserves the sign bit by default, so 0, so is slightly differen than -0
+  // Serialization preserves the sign bit by default, so 0 is distinct from (but directly adjecent to) -0
   assert.equal(hexEncode(-0), '42ffffffffffffffff');
   assert.equal(hexEncode(0), '450000000000000000');
 
