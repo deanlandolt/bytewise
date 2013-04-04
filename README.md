@@ -22,7 +22,7 @@ This is the sort order of the various structures that can be encoded:
 * `undefined`
 
 
-These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in a way that carefully preserves the desired sort behavior even in the precense of structural nested. Negative numbers are stored as a different type from positive numbers, inverted to ensure numbers with a larger magnitude come first. Positive and negative `Infinity` can also be encoded. Values of `Date` types are stored similarly to numbers, but as in indexeddb, they sort after all numbers, including `Infinity`. Binary data can be stored in the raw, and is sorted before string data. Then come the collection types -- arrays, objects (as well as other non-string-keyed maps), sets and even functions.
+These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in a way that carefully preserves the desired sort behavior even in the precense of structural nested. Negative numbers are stored as a different type from positive numbers, inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded. `Date` instances are stored just like `Number` instances, but as in indexeddb, `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array`, `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values.
 
 
 ## Unsupported Structures
@@ -34,9 +34,9 @@ This serialization accomodates a wide range of javascript structures, but it is 
 
 This sort order has some useful properties. For instance, `undefined` can serve as a high-key sentinal in range requests. If end key is `undefined` the range will extend all the way to its end. Similarly `null` gives us a the low-key sentinal since it always sorts first.
 
-Clients that wish to employ a subset of the full range of possible types above should preprocess any objects to transform them into simpler forms before serializing. For instance, if you wanted to build couchdb-style indexing you could round-trip values through a JSON encode cycle (to get just the subset of types supported by couchdb) before passing to `encode`.
+Clients that wish to employ a subset of the full range of possible types above should preprocess any objects to transform them into simpler forms before serializing. For instance, if you wanted to build couchdb-style indexing you could round-trip values through a `JSON` encode cycle (to get just the subset of types supported by couchdb) before passing to `encode`.
 
-This collation should be easy to extend to indexeddb as well. It is specifically designed as a superset of the collation defined for indexeddb so we can use array structures type prefixed array structures and otherwise fall back on indexeddb's sort where possible.
+This collation should be easy to extend to indexeddb as well. It is specifically designed as a superset of the collation defined for indexeddb so we can use type-prefixed array structures and lean on indexeddb's default sort behavior wherever possible.
 
 
 ## Usage
