@@ -76,8 +76,13 @@ This collation should be easy to extend to indexeddb as well. It is specifically
   assert.equal(hexEncode(new Date(-12345)), '60bf37e37fffffffff');
   assert.equal(hexEncode(new Date(12345)), '6140c81c8000000000');
 
-  // Top level Strings and Buffers are prefixed with their type tag but are otherwise left alone
+  // Strings are as utf8 prefixed with their type tag
   assert.equal(hexEncode('foo'), '80666f6f');
+
+  // That same string encoded in the raw
+  assert.equal(bytewise.encode('foo').toString('binary'), '\x80foo')
+
+  // Buffers are completely left alone, other than being prefixed with their type tag
   assert.equal(hexEncode(new Buffer('ff00fe01', 'hex')), '70ff00fe01');
 
   // Arrays are just a series of values terminated with a null byte
@@ -87,7 +92,7 @@ This collation should be easy to extend to indexeddb as well. It is specifically
   // to make way for a null termination byte to signal their end
   assert.equal(hexEncode([ 'foo' ]), 'a0806770700000');
 
-  // Here is the same encoded value as a raw string -- note the 'gpp', the escaped version of 'foo'
+  // That same string encoded in the raw -- note the 'gpp', the escaped version of 'foo'
   assert.equal(bytewise.encode(['foo']).toString('binary'), '\xa0\x80gpp\x00\x00')
 
   // The 0xff byte is used as an escape to encode 0xfe and 0xff bytes, preserving the correct collation
