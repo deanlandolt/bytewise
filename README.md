@@ -46,10 +46,54 @@ This collation should be easy to extend to indexeddb as well. It is specifically
   ``` js
   var bytewise = require('bytewise');
   var assert = require('assert');
+  var buffer;
 
-  var result = bytewise.encode([ 42, [ 'foo' ] ]);
-  var buffer = new Buffer([ 0xa0,0x45,0x40,0x45,0,0,0,0,0,0,0xa0,0x80,0x67,0x70,0x70,0,0,0 ]);
-  assert.deepEqual(buffer, result);
+  // Many types can be respresented using only their type tag, a single byte
+  // WARNING type tags are subject to change for now!
+  assert.equal(bytewise.encode(null).toString('hex'), '10');
+  assert.equal(bytewise.encode(false).toString('hex'), '20');
+  assert.equal(bytewise.encode(true).toString('hex'), '21');
+  assert.equal(bytewise.encode(undefined).toString('hex'), 'ff');
+
+  // Numbers are stored in 9 bytes -- 1 byte for the type tag and an 8 byte float
+  assert.equal(bytewise.encode(12345).toString('hex'), '4540c81c8000000000');
+  // Negative numbers are stored as positive numbers, but with a lower type tag and their bits inverted
+  assert.equal(bytewise.encode(-12345).toString('hex'), '42bf37e37fffffffff');
+
+  // Floating point numbers are stored just like integers
+  assert.equal(bytewise.encode(1.2345).toString('hex'), '453ff3c083126e978d');
+  assert.equal(bytewise.encode(-1.2345).toString('hex'), '42c00c3f7ced916872');
+
+  // Serialization preserves the sign bit by default, so 0, so is slightly differen than -0
+  assert.equal(bytewise.encode(-0).toString('hex'), '42ffffffffffffffff');
+  assert.equal(bytewise.encode(0).toString('hex'), '450000000000000000');
+
+  // We can even serialize Infinity and -Infinity, though we just use their type tag
+  assert.equal(bytewise.encode(-Infinity).toString('hex'), '40');
+  assert.equal(bytewise.encode(Infinity).toString('hex'), '47');
+
+  // Dates are stored just like numbers, but with different (and higher) type tags
+  assert.equal(bytewise.encode(new Date(-12345)).toString('hex'), '60bf37e37fffffffff');
+  assert.equal(bytewise.encode(new Date(12345)).toString('hex'), '6140c81c8000000000');
+
+  // Top level Strings and Buffers are prefixed with their type tag but are otherwise left alone
+  buffer = bytewise.encode('foo');
+  assert.equal(buffer.toString('hex'), '80666f6f');
+  buffer = bytewise.encode(new Buffer('ff00fe01', 'hex'));
+  assert.equal(buffer.toString('hex'), '70ff00fe01');
+
+  // Arrays are just a series of values terminated with a null byte
+  buffer = bytewise.encode([ true, -1.2345 ]);
+  assert.equal(buffer.toString('hex'), 'a02142c00c3f7ced91687200');
+
+  // When embedded in complex structures (like arrays) Strings and Buffers have their bytes shifted
+  // to make way for a null termination byte to signal their end
+  buffer = bytewise.encode([ true, [ 'foo' ], -1.2345 ]);
+  assert.equal(buffer.toString('hex'), 'a021a080677070000042c00c3f7ced91687200');
+
+  // Objects are just string-keyed maps, stored like arrays: [ k1, v1, k2, v2, ... ]
+  buffer = bytewise.encode({ foo: true, bar: -1.2345 });
+  assert.equal(buffer.toString('hex'), 'b0806770700021806362730042c00c3f7ced91687200');
   ```
 
 
