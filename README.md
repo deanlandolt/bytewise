@@ -44,6 +44,9 @@ This collation should be easy to extend to indexeddb as well. It is specifically
 `encode` serializes any supported type and returns a buffer, or throws if an unsupported structure is passed:
   
   ``` js
+  var bytewise = require('bytewise');
+  var assert = require('assert');
+
   var result = bytewise.encode([ 42, [ 'foo' ] ]);
   var buffer = new Buffer([ 0xa0,0x45,0x40,0x45,0,0,0,0,0,0,0xa0,0x90,0x67,0x70,0x70,0,0,0 ]);
   assert.deepEqual(buffer, result);
@@ -60,9 +63,10 @@ This collation should be easy to extend to indexeddb as well. It is specifically
     new Date('2000-01-01T00:00:00Z'),
     42,
     undefined,
+    [ undefined ],
     -1.1,
     {},
-    true,,
+    true,
     [ { bar: [ 'baz' ] }, { bar: 1 } ],
     -Infinity,
     [],
@@ -88,6 +92,7 @@ This collation should be easy to extend to indexeddb as well. It is specifically
     'foo √',
     [],
     [ { bar: [ 'baz' ] }, { bar: 1 } ],
+    [ undefined ],
     {},
     undefined
   ];
