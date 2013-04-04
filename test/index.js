@@ -3,11 +3,15 @@
 var bytewise = require('../bytewise');
 
 var samples = {
-  booleans: [
+  empty: [
+    void 0,
+    null
+  ],
+  boolean: [
     false,
     true
   ],
-  numbers: [
+  number: [
     Number.NEGATIVE_INFINITY,
     -Number.MAX_INTEGER,
     -1000,
@@ -37,7 +41,7 @@ var samples = {
     Number.MAX_INTEGER,
     Number.POSITIVE_INFINITY
   ],
-  dates: [
+  date: [
     new Date(-1),
     new Date(-0),
     new Date(0),
@@ -46,7 +50,7 @@ var samples = {
     new Date(1000000000000),
     new Date('2001-09-09T01:46:40.001Z')
   ],
-  buffers: [
+  buffer: [
     new Buffer([]),
     new Buffer([ 0 ]),
     new Buffer([ 0, 0 ]),
@@ -57,7 +61,7 @@ var samples = {
     new Buffer([ 255, 0 ]),
     new Buffer([ 255, 255 ])
   ],
-  strings: [
+  string: [
     '',
     '\x00',
     '\x00\x00',
@@ -93,7 +97,7 @@ function listEqual(a, b) {
 }
 
 function getSample() {
-  var sample = [ null ];
+  var sample = [];
   Object.keys(samples).forEach(function(key) {
     sample = sample.concat(samples[key]);
   });
@@ -101,7 +105,7 @@ function getSample() {
 }
 
 
-var sample = getSample().concat(undefined);
+var sample = getSample();
 var shuffled = shuffle(sample.slice());
 listEqual(sample, shuffled.map(bytewise.encode).sort(bytewise.compare).map(bytewise.decode));
 

@@ -1,25 +1,29 @@
 'use strict';
 require('es6-shim');
+var context = require('./context');
 
 // Sort tags used to preserve binary total order
 // The tag is 1 byte, which gives us plenty of room to grow.
 // We leave some space between the various types for possible future compatibility with extensions.
-var NULL = 0x10;
+
+// 0x00 reserved for termination character
+var UNDEFINED = 0x10;
+var NULL = 0x11;
 var FALSE = 0x20;
 var TRUE = 0x21;
 var NEGATIVE_INFINITY = 0x40;
-var NEGATIVE_NUMBER = 0x42; // packed in an inverted form to sort bitwise ascending
-var POSITIVE_NUMBER = 0x45;
-var POSITIVE_INFINITY = 0x47;
-var DATE_PRE_EPOCH = 0x60; // packed identically to a NEGATIVE_NUMBER
-var DATE_POST_EPOCH = 0x61; // packed identically to a POSITIVE_NUMBER
-var BUFFER = 0x70;
-var STRING = 0x80;
+var NEGATIVE_NUMBER = 0x41; // packed in an inverted form to sort bitwise ascending
+var POSITIVE_NUMBER = 0x42;
+var POSITIVE_INFINITY = 0x43;
+var DATE_PRE_EPOCH = 0x51; // packed identically to a NEGATIVE_NUMBER
+var DATE_POST_EPOCH = 0x52; // packed identically to a POSITIVE_NUMBER
+var BUFFER = 0x60;
+var STRING = 0x70;
 var SET = 0x90; // packed as array with members sorted and deduped
-var ARRAY = 0xA0; // escapes nested types with bit shifting where necessary to maintain order
-var MAP = 0xB0; // just like couchdb member order is preserved and matters for collation
-var FUNCTION = 0xC0; // packed as array, revived by safe eval in an isolated environment (TODO)
-var UNDEFINED = 0xFF;
+var ARRAY = 0xa0; // escapes nested types with bit shifting where necessary to maintain order
+var MAP = 0xb0; // just like couchdb member order is preserved and matters for collation
+var FUNCTION = 0xc0; // packed as array, revived by safe eval in an isolated environment (TODO)
+// 0xff reserved for high-key sentinal
 
 
 var flatTypes = [ BUFFER, STRING ];
@@ -242,10 +246,6 @@ function flatUnescape(buffer) {
 }
 
 
-function decodeList(buffer) {
-  
-}
-
 function parseHead(buffer) {
   // Parses and returns the first type on the buffer and the total bytes consumed
   var type = buffer.get(0);
@@ -282,8 +282,7 @@ function parseHead(buffer) {
 function structure(type, list) {
   if (type === ARRAY) return list;
   if (type === FUNCTION) {
-    // TODO sandbox
-    return Function.apply(null, list);
+    return context.Function.apply(null, list);
   }
   var i;
   if (type === MAP) {
