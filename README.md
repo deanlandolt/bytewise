@@ -27,7 +27,7 @@ These specific structures can be used to serialize the vast majority of javascri
 
 ## Unsupported Structures
 
-This serialization accomodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles, for instance, cannot be serialized. NaNs are also illegal as their presense is very likely indicative of a calculation error, and sorting NaNs is nonsensical anyway. (Similarly we may want to reject objects which are instances of `Error`.) Attempts to serialize any values which include these structures will throw an error.
+This serialization accomodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles, for instance, cannot be serialized. `NaN` is also illegal anywhere in a serialized value, as its presense is very likely indicative of an error. Moreover, sorting for `NaN` is completely nonsensical. (Similarly we may want to reject objects which are instances of `Error`.) Invalid `Date` objects are also illegal. Attempts to serialize any values which include these structures will throw a `TypeError`.
 
 
 ## Properties

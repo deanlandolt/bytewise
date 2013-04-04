@@ -44,7 +44,7 @@ function encode(value) {
 
   // Number
   if (typeof value === 'number') {
-    if (value !== value) throw new Error('NaN cannot be serialized');
+    if (value !== value) throw new TypeError('NaN not allowed');
     if (value === Number.NEGATIVE_INFINITY) return tag(NEGATIVE_INFINITY);
     if (value === Number.POSITIVE_INFINITY) return tag(POSITIVE_INFINITY);
     var type = isNegative(value) ? NEGATIVE_NUMBER : POSITIVE_NUMBER;
@@ -54,7 +54,7 @@ function encode(value) {
   // Date
   if (value instanceof Date) {
     var timestamp = value.valueOf();
-    if (timestamp !== timestamp) throw new Error('Invalid Date cannot be serialized');
+    if (timestamp !== timestamp) throw new TypeError('Invalid Date not allowed');
     // Normalize -0 values to 0
     if (Object.is(timestamp, -0)) timestamp = 0;
     var type = isNegative(timestamp) ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
