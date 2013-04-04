@@ -48,7 +48,7 @@ This collation should be easy to extend to indexeddb as well. It is specifically
   var assert = require('assert');
 
   var result = bytewise.encode([ 42, [ 'foo' ] ]);
-  var buffer = new Buffer([ 0xa0,0x45,0x40,0x45,0,0,0,0,0,0,0xa0,0x90,0x67,0x70,0x70,0,0,0 ]);
+  var buffer = new Buffer([ 0xa0,0x45,0x40,0x45,0,0,0,0,0,0,0xa0,0x80,0x67,0x70,0x70,0,0,0 ]);
   assert.deepEqual(buffer, result);
   ```
 
