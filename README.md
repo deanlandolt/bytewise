@@ -11,14 +11,14 @@ This is the sort order of the various structures that can be encoded:
 * `null`
 * `false`
 * `true`
-* `number` (numeric)
-* `date` (numeric, epoch offset)
-* `buffer` (bitwise)
-* `string` (lexicographic)
-* `array` (componentwise)
-* `map` (componentwise key/value pairs)
-* `set` (componentwise, values sorted)
-* `function` (stringified lexicographic)
+* `Number` (numeric)
+* `Date` (numeric, epoch offset)
+* `Buffer` (bitwise)
+* `String` (lexicographic)
+* `Array` (componentwise)
+* `Map` (componentwise key/value pairs)
+* `Set` (componentwise, values sorted)
+* `Function` (stringified lexicographic)
 * `undefined`
 
 
