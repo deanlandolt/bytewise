@@ -99,7 +99,30 @@ This collation should be easy to extend to indexeddb as well. It is specifically
 
 ## Future
 
-The ordering chosen for some of the types is somewhat arbitrary. It is intentionally structured to support the structural sorts defined by couchdb and indexeddb but there might be more logical placements, specifically for BUFFER, SET, and FUNCTION. For instance we may want to draw a distinction between collections that preserve order and those that don't. We may want another distinction on whether duplicate keys are allowed.
+The ordering chosen for some of the types is somewhat arbitrary. It is intentionally structured to support those sorts defined by couchdb and indexeddb but there might be more logical placements, specifically for BUFFER, SET, and FUNCTION, which aren't defined in either. It may be beneficial to fully characterize the distinctions between collections that affect collation.
+  
+One possible breakdown for collection types:
+
+* sorted set (order unimportant and thus sorted using standard collation)
+  * sorted multiset, duplicates allowed
+* ordered set (order-preserving with distinct values)
+  * ordered multiset, duplicates allowed (an array or tuple)
+* sorted map (keys as sorted set, objects are string-keyed maps)
+  * sorted multimap (keys as sorted multiset), duplicates allowed
+* ordered map (keys as ordered set)
+  * ordered multimap (keys as ordered multiset), duplicates allowed
+
+The primary distinction between collections are whether their items are unary (sets or arrays of elements) or binary (maps of keys and values). The secondary distinction is whether the collection preserves the order of its elements or not. For instance, arrays preserve the order of their elements while sets do not. Maps typically don't either, nor do javascript objects (even if they appear to at first). These are the two bits which characterize collection types that globally effect the sorting of the types.
+
+There is a third characterizing bit: whether or not duplicates are allowed. The effect this has on sort is very localized, only for breaking ties between two otherwise identical keys -- otherwise records are completely interwoven when sorted, regardless of whether duplicates are allowed or not.
+
+We may want unique symbols to signal these characterizing bits for serialization.
+
+We probably want hooks for custom revivers.
+
+Sparse arrays could be modeled with sorted maps of integer keys, but should we use a trailer to preserve this data?
+
+This is very close to a generalized total order for all possible data structure models.
 
 
 ## License
