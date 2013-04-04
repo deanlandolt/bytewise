@@ -15,9 +15,9 @@ This is the sort order of the various structures that can be encoded:
 * `Date` (numeric, epoch offset)
 * `Buffer` (bitwise)
 * `String` (lexicographic)
+* `Set` (componentwise, values sorted)
 * `Array` (componentwise)
 * `Map` (componentwise key/value pairs)
-* `Set` (componentwise, values sorted)
 * `Function` (stringified lexicographic)
 * `undefined`
 

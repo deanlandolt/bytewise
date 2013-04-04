@@ -4,23 +4,21 @@ require('es6-shim');
 // Sort tags used to preserve binary total order
 // The tag is 1 byte, which gives us plenty of room to grow.
 // We leave some space between the various types for possible future compatibility with extensions.
-
-var NULL = 0x01;
-var FALSE = 0x10;
-var TRUE = 0x11;
+var NULL = 0x10;
+var FALSE = 0x20;
+var TRUE = 0x21;
 var NEGATIVE_INFINITY = 0x40;
 var NEGATIVE_NUMBER = 0x42; // packed in an inverted form to sort bitwise ascending
 var POSITIVE_NUMBER = 0x45;
 var POSITIVE_INFINITY = 0x47;
 var DATE_PRE_EPOCH = 0x60; // packed identically to a NEGATIVE_NUMBER
 var DATE_POST_EPOCH = 0x61; // packed identically to a POSITIVE_NUMBER
-
-var BUFFER = 0x80;
-var STRING = 0x90;
+var BUFFER = 0x70;
+var STRING = 0x80;
+var SET = 0x90; // packed as array with members sorted and deduped
 var ARRAY = 0xA0; // escapes nested types with bit shifting where necessary to maintain order
 var MAP = 0xB0; // just like couchdb member order is preserved and matters for collation
-var SET = 0xC0; // packed as array with members sorted and deduped
-var FUNCTION = 0xD0; // packed as array, revived by safe eval in an isolated environment (TODO)
+var FUNCTION = 0xC0; // packed as array, revived by safe eval in an isolated environment (TODO)
 var UNDEFINED = 0xFF;
 
 
