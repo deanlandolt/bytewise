@@ -46,49 +46,55 @@ This collation should be easy to extend to indexeddb as well. It is specifically
   ``` js
   var bytewise = require('bytewise');
   var assert = require('assert');
-  function toHex(buffer) { return bytewise.encode(buffer).toString('hex') }
+  function hexEncode(buffer) { return bytewise.encode(buffer).toString('hex') }
 
   // Many types can be respresented using only their type tag, a single byte
   // WARNING type tags are subject to change for now!
-  assert.equal(toHex(null), '10');
-  assert.equal(toHex(false), '20');
-  assert.equal(toHex(true), '21');
-  assert.equal(toHex(undefined), 'ff');
+  assert.equal(hexEncode(null), '10');
+  assert.equal(hexEncode(false), '20');
+  assert.equal(hexEncode(true), '21');
+  assert.equal(hexEncode(undefined), 'ff');
 
   // Numbers are stored in 9 bytes -- 1 byte for the type tag and an 8 byte float
-  assert.equal(toHex(12345), '4540c81c8000000000');
+  assert.equal(hexEncode(12345), '4540c81c8000000000');
   // Negative numbers are stored as positive numbers, but with a lower type tag and their bits inverted
-  assert.equal(toHex(-12345), '42bf37e37fffffffff');
+  assert.equal(hexEncode(-12345), '42bf37e37fffffffff');
 
   // Floating point numbers are stored just like integers
-  assert.equal(toHex(1.2345), '453ff3c083126e978d');
-  assert.equal(toHex(-1.2345), '42c00c3f7ced916872');
+  assert.equal(hexEncode(1.2345), '453ff3c083126e978d');
+  assert.equal(hexEncode(-1.2345), '42c00c3f7ced916872');
 
   // Serialization preserves the sign bit by default, so 0, so is slightly differen than -0
-  assert.equal(toHex(-0), '42ffffffffffffffff');
-  assert.equal(toHex(0), '450000000000000000');
+  assert.equal(hexEncode(-0), '42ffffffffffffffff');
+  assert.equal(hexEncode(0), '450000000000000000');
 
   // We can even serialize Infinity and -Infinity, though we just use their type tag
-  assert.equal(toHex(-Infinity), '40');
-  assert.equal(toHex(Infinity), '47');
+  assert.equal(hexEncode(-Infinity), '40');
+  assert.equal(hexEncode(Infinity), '47');
 
   // Dates are stored just like numbers, but with different (and higher) type tags
-  assert.equal(toHex(new Date(-12345)), '60bf37e37fffffffff');
-  assert.equal(toHex(new Date(12345)), '6140c81c8000000000');
+  assert.equal(hexEncode(new Date(-12345)), '60bf37e37fffffffff');
+  assert.equal(hexEncode(new Date(12345)), '6140c81c8000000000');
 
   // Top level Strings and Buffers are prefixed with their type tag but are otherwise left alone
-  assert.equal(toHex('foo'), '80666f6f');
-  assert.equal(toHex(new Buffer('ff00fe01', 'hex')), '70ff00fe01');
+  assert.equal(hexEncode('foo'), '80666f6f');
+  assert.equal(hexEncode(new Buffer('ff00fe01', 'hex')), '70ff00fe01');
 
   // Arrays are just a series of values terminated with a null byte
-  assert.equal(toHex([ true, -1.2345 ]), 'a02142c00c3f7ced91687200');
+  assert.equal(hexEncode([ true, -1.2345 ]), 'a02142c00c3f7ced91687200');
 
   // When embedded in complex structures (like arrays) Strings and Buffers have their bytes shifted
   // to make way for a null termination byte to signal their end
-  assert.equal(toHex([ true, [ 'foo' ], -1.2345 ]), 'a021a080677070000042c00c3f7ced91687200');
+  assert.equal(hexEncode([ 'foo' ]), 'a0806770700000');
+
+  // The 0xff byte is used as an escape to encode 0xfe and 0xff bytes, preserving the correct collation
+  assert.equal(hexEncode([ new Buffer('ff00fe01', 'hex') ]), 'a070ffff01fffe020000');
+
+  // Complex types like arrays can be arbitrarily nested, and fixed-sized types will never need a terminating byte
+  assert.equal(hexEncode([ [ true, 'foo' ], -1.2345 ]), 'a0a02180677070000042c00c3f7ced91687200');
 
   // Objects are just string-keyed maps, stored like arrays: [ k1, v1, k2, v2, ... ]
-  assert.equal(toHex({ foo: true, bar: -1.2345 }), 'b0806770700021806362730042c00c3f7ced91687200');
+  assert.equal(hexEncode({ foo: true, bar: -1.2345 }), 'b0806770700021806362730042c00c3f7ced91687200');
   ```
 
 
