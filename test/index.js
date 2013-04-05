@@ -92,7 +92,6 @@ function shuffle(o) {
 var assert = require('assert');
 function listEqual(a, b) {
   // TODO stringify functions
-  // TODO test number and date value for -0
   return assert.deepEqual(a, b);
 }
 

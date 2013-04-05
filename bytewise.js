@@ -49,7 +49,9 @@ function encode(value) {
     if (value !== value) throw new TypeError('NaN not allowed');
     if (value === Number.NEGATIVE_INFINITY) return tag(NEGATIVE_INFINITY);
     if (value === Number.POSITIVE_INFINITY) return tag(POSITIVE_INFINITY);
-    var type = isNegative(value) ? NEGATIVE_NUMBER : POSITIVE_NUMBER;
+    // Normalize -0 values to 0
+    if (Object.is(value, -0)) value = 0;
+    var type = value < 0 ? NEGATIVE_NUMBER : POSITIVE_NUMBER;
     return tag(type, encodeNumber(value));
   }
 
@@ -59,7 +61,7 @@ function encode(value) {
     if (timestamp !== timestamp) throw new TypeError('Invalid Date not allowed');
     // Normalize -0 values to 0
     if (Object.is(timestamp, -0)) timestamp = 0;
-    var type = isNegative(timestamp) ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
+    var type = timestamp < 0 ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
     return tag(type, encodeNumber(timestamp));
   }
 
@@ -110,6 +112,8 @@ function encode(value) {
     var body = code.slice(code.indexOf('{') + 1, code.lastIndexOf('}')).trim();
     return tag(FUNCTION, encodeList((params || []).concat(body)));
   }
+
+  // TODO RegExp and other types from Structured Clone algorithm (Blob, File, FileList)
 }
 
 function decode(buffer) {
@@ -156,11 +160,6 @@ function decode(buffer) {
 }
 
 
-function isNegative(value) {
-  if (value === 0) return Object.is(value, -0);
-  return value < 0;
-}
-
 function tag(type, buffer) {
   type = new Buffer([ type ]);
   if (!buffer) return type;
@@ -178,9 +177,8 @@ function compare(a, b) {
 }
 
 function encodeNumber(value) {
-  var negative = isNegative(value);
   var buffer = new Buffer(8);
-  if (negative) {
+  if (value < 0) {
     buffer.writeDoubleBE(-value, 0);
     return invert(buffer);
   }
