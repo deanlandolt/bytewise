@@ -24,7 +24,7 @@ This is the top level order of the various structures that may be encoded:
 
 These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in such a way as to carefully preserve the desired sort behavior, even in the precense of structural nested.
 
-For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag., same with `null` and `undefined`, and the boolean values `false`, `true`, . `Date` instances are stored just like `Number` instances, but as in indexeddb, `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array`, `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values, reviving them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they can't do anything but calculate.
+For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag., same with `null` and `undefined`, and the boolean values `false`, `true`, . `Date` instances are stored just like `Number` instances, but as in IndexedDB, `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array`, `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values, reviving them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they can't do anything but calculate.
 
 
 ## Unsupported Structures
@@ -43,59 +43,59 @@ This serialization accomodates a wide range of javascript structures, but it is 
 
   // Many types can be respresented using only their type tag, a single byte
   // WARNING type tags are subject to change for the time being!
-  assert.equal(hexEncode(undefined), '10');
-  assert.equal(hexEncode(null), '11');
-  assert.equal(hexEncode(false), '20');
-  assert.equal(hexEncode(true), '21');
+  assert.equal(bytewise.encode(undefined).toString('binary'), '\x10');
+  assert.equal(bytewise.encode(null).toString('binary'), '\x11');
+  assert.equal(bytewise.encode(false).toString('binary'), '\x20');
+  assert.equal(bytewise.encode(true).toString('binary'), '\x21');
 
   // Numbers are stored in 9 bytes -- 1 byte for the type tag and an 8 byte float
-  assert.equal(hexEncode(12345), '4540c81c8000000000');
+  assert.equal(hexEncode(12345), '4240c81c8000000000');
   // Negative numbers are stored as positive numbers, but with a lower type tag and their bits inverted
-  assert.equal(hexEncode(-12345), '42bf37e37fffffffff');
+  assert.equal(hexEncode(-12345), '41bf37e37fffffffff');
 
   // All numbers, integer or floating point, are stored as IEEE 754 doubles
-  assert.equal(hexEncode(1.2345), '453ff3c083126e978d');
-  assert.equal(hexEncode(-1.2345), '42c00c3f7ced916872');
+  assert.equal(hexEncode(1.2345), '423ff3c083126e978d');
+  assert.equal(hexEncode(-1.2345), '41c00c3f7ced916872');
 
   // Serialization preserves the sign bit by default, so 0 is distinct from (but directly adjecent to) -0
-  assert.equal(hexEncode(-0), '42ffffffffffffffff');
-  assert.equal(hexEncode(0), '450000000000000000');
+  assert.equal(hexEncode(-0), '41ffffffffffffffff');
+  assert.equal(hexEncode(0), '420000000000000000');
 
   // We can even serialize Infinity and -Infinity, though we just use their type tag
   assert.equal(hexEncode(-Infinity), '40');
-  assert.equal(hexEncode(Infinity), '47');
+  assert.equal(hexEncode(Infinity), '43');
 
   // Dates are stored just like numbers, but with different (and higher) type tags
-  assert.equal(hexEncode(new Date(-12345)), '60bf37e37fffffffff');
-  assert.equal(hexEncode(new Date(12345)), '6140c81c8000000000');
+  assert.equal(hexEncode(new Date(-12345)), '51bf37e37fffffffff');
+  assert.equal(hexEncode(new Date(12345)), '5240c81c8000000000');
 
   // Strings are as utf8 prefixed with their type tag
-  assert.equal(hexEncode('foo'), '80666f6f');
+  assert.equal(hexEncode('foo'), '70666f6f');
 
   // That same string encoded in the raw
-  assert.equal(bytewise.encode('foo').toString('binary'), '\x80foo')
+  assert.equal(bytewise.encode('foo').toString('binary'), '\x70foo')
 
   // Buffers are completely left alone, other than being prefixed with their type tag
-  assert.equal(hexEncode(new Buffer('ff00fe01', 'hex')), '70ff00fe01');
+  assert.equal(hexEncode(new Buffer('ff00fe01', 'hex')), '60ff00fe01');
 
   // Arrays are just a series of values terminated with a null byte
-  assert.equal(hexEncode([ true, -1.2345 ]), 'a02142c00c3f7ced91687200');
+  assert.equal(hexEncode([ true, -1.2345 ]), 'a02141c00c3f7ced91687200');
 
   // When embedded in complex structures (like arrays) Strings and Buffers have their bytes shifted
   // to make way for a null termination byte to signal their end
-  assert.equal(hexEncode([ 'foo' ]), 'a0806770700000');
+  assert.equal(hexEncode([ 'foo' ]), 'a0706770700000');
 
   // That same string encoded in the raw -- note the 'gpp', the escaped version of 'foo'
-  assert.equal(bytewise.encode(['foo']).toString('binary'), '\xa0\x80gpp\x00\x00')
+  assert.equal(bytewise.encode(['foo']).toString('binary'), '\xa0\x70gpp\x00\x00');
 
   // The 0xff byte is used as an escape to encode 0xfe and 0xff bytes, preserving the correct collation
-  assert.equal(hexEncode([ new Buffer('ff00fe01', 'hex') ]), 'a070ffff01fffe020000');
+  assert.equal(hexEncode([ new Buffer('ff00fe01', 'hex') ]), 'a060ffff01fffe020000');
 
   // Complex types like arrays can be arbitrarily nested, and fixed-sized types never need a terminating byte
-  assert.equal(hexEncode([ [ true, 'foo' ], -1.2345 ]), 'a0a02180677070000042c00c3f7ced91687200');
+  assert.equal(hexEncode([ [ true, 'foo' ], -1.2345 ]), 'a0a02170677070000041c00c3f7ced91687200');
 
   // Objects are just string-keyed maps, stored like arrays: [ k1, v1, k2, v2, ... ]
-  assert.equal(hexEncode({ foo: true, bar: -1.2345 }), 'b0806770700021806362730042c00c3f7ced91687200');
+  assert.equal(hexEncode({ foo: true, bar: -1.2345 }), 'b0706770700021706362730041c00c3f7ced91687200');
   ```
 
 
@@ -177,18 +177,18 @@ Build a view that colocates related subrecords, taking advantage of component-wi
 
 ### Emulating other systems
 
-Clients that wish to employ a subset of the full range of possible types above can preprocess values to coerce them into the desired simpler forms before serializing. For instance, if you were to build couchdb-style indexing you could round-trip values through a `JSON` encode cycle (to get just the subset of types supported by couchdb) before passing to `encode`, resulting in a collation that is identical to couchdb. Emulating indexeddb's collation would require preprocessing away `Buffer` data and `undefined` values. (TODO what else? Does it normalize `-0` values to `0`?)
+Clients that wish to employ a subset of the full range of possible types above can preprocess values to coerce them into the desired simpler forms before serializing. For instance, if you were to build CouchDB-style indexing you could round-trip values through a `JSON` encode cycle (to get just the subset of types supported by CouchDB) before passing to `encode`, resulting in a collation that is identical to CouchDB. Emulating IndexedDB's collation would require preprocessing away `Buffer` data and `undefined` values. (TODO what else? Does it normalize `-0` values to `0`?)
 
 ### Embedding in the browser
 
-While this particular serialization is only useful for binary indexing, the collation defined can easily be extended to embed inside indexeddb. At the top level all values would be arrays with the type tag as the first value. Any binary data would have be transcoded to a string in a manner that preserves sort order. Otherwise we can lean on indexeddb's default sort behavior as much as possible.
+While this particular serialization is only useful for binary indexing, the collation defined can easily be extended to embed inside indexeddb. At the top level all values would be arrays with the type tag as the first value. Any binary data would have be transcoded to a string in a manner that preserves sort order. Otherwise we can lean on IndexedDB's default sort behavior as much as possible.
 
 
 ## Future
 
 ### Generic collections
 
-The ordering chosen for some of the types is somewhat arbitrary. It is intentionally structured to support those sorts defined by couchdb and indexeddb but there might be more logical placements, specifically for BUFFER, SET, and FUNCTION, which aren't defined in either. It may be beneficial to fully characterize the distinctions between collections that affect collation.
+The ordering chosen for some of the types is somewhat arbitrary. It is intentionally structured to support those sorts defined by CouchDB and IndexedDB but there might be more logical placements, specifically for BUFFER, SET, and FUNCTION, which aren't defined in either. It may be beneficial to fully characterize the distinctions between collections that affect collation.
   
 One possible breakdown for collection types:
 
