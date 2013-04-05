@@ -217,6 +217,16 @@ This is very close to a generalized total order for all possible data structure 
 
 Encoding and decoding is surely slower than the native `JSON` functions, but there is plenty of room to narrow the gap. Once the serialization stabilizes a C port should be straitforward to narrow the gap further.
 
+### Streams
+
+Where this serialization should really shine is streaming. Building a from stream from individually encoded elements should require little more than strait concatenation, and parsing a stream would be the same as parsing an array. 
+
+It's not typically useful for each and every array (and object) to be emitted as a stream, but it's not always the case that a stream purely consists of elements in a top-level array. There can be other "pivot points" where streams make sense. For instance, an array of records might be sensible to stream... but what if the record has a field that could be quite large (say, the binary contents of an image)? It should be possible to add a handler for this field in the parser, and when it reaches this kind of path it will emit a stream. The handler could have water-mark hints for how to break up the elements. If the value targeted to stream is a `String` or `Buffer` we'd have to be careful with unescaping, and for `Strings` specifically we'd also have to ensure we don't hack up multibyte characters.
+
+Alternatively we could define another bit for collections -- the *streaming* bit -- that lets the creator dictate what values are intended to stream. Of course, in order to avoid buffering all streams the consumer would still have to handle all streams during parsing. Still, this does seem like a real characterization flag for collection types, and like the *unique* flag, it shouldn't affect the global type sort so it should appear in the trailer bit. This would mean we'd need to steal another few bits in the flat sequence escapement, which isn't much of a problem. Worse, it would mean in order to tell when the stream bit is set the whole stream would have needed to be buffered, but this may not be such a bad thing, considering we'd need a pre-defined handler in order to avoid buffering anyway.
+
+With a sensible path language we could combine these two approaches. During parsing consumers could add a general handler is given the path and a stream instance every time a stream collection is hit. A consumer could also handlers specific to particular paths, the handler only being called when the path matches, and the underlying value is coerced into a stream, regardless of what type it is (though it may not make sense to bother building streams for scalar types). This could be a special case of a more general path handler that doesn't do stream coercion. If handlers are added no final parsed value may be needed, in which case no callback should be passed to the parser. Or all of these approaches could be combined -- stream handlers, path handlers, and a fully parsed value passed to the callback when complete.
+
 
 ## License
 
