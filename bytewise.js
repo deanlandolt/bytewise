@@ -1,14 +1,14 @@
 'use strict';
-require('es6-shim');
-var context = require('./context');
+
+var typewise = require('typewise');
+var compare = typewise.compare.bytewise;
 
 // Sort tags used to preserve binary total order
 // The tag is 1 byte, which gives us plenty of room to grow.
 // We leave some space between the various types for possible future compatibility with extensions.
 
 // 0x00 reserved for termination character
-var UNDEFINED = 0x10;
-var NULL = 0x11;
+var NULL = 0x10;
 var FALSE = 0x20;
 var TRUE = 0x21;
 var NEGATIVE_INFINITY = 0x40;
@@ -22,13 +22,14 @@ var STRING = 0x70;
 var SET = 0x90; // packed as array with members sorted and deduped
 var ARRAY = 0xa0; // escapes nested types with bit shifting where necessary to maintain order
 var MAP = 0xb0; // just like couchdb member order is preserved and matters for collation
-var FUNCTION = 0xc0; // packed as array, revived by safe eval in an isolated environment (TODO)
+var REGEXP = 0xc0; // packed as tuple of two strings, the end being flags
+var FUNCTION = 0xc1; // packed as array, revived by safe eval in an isolated environment (if available)
+var UNDEFINED = 0xe0;
 // 0xff reserved for high-key sentinal
 
 
 var flatTypes = [ BUFFER, STRING ];
 var structuredTypes = [ ARRAY, MAP, SET, FUNCTION ];
-var sequenceTypes = flatTypes.concat(structuredTypes);
 var nullaryTypes = [ NULL, FALSE, TRUE, NEGATIVE_INFINITY, POSITIVE_INFINITY, UNDEFINED ];
 var fixedTypes = {};
 fixedTypes[NEGATIVE_NUMBER] = 8;
@@ -37,46 +38,62 @@ fixedTypes[DATE_PRE_EPOCH] = 8;
 fixedTypes[DATE_POST_EPOCH] = 8;
 
 
-function encode(value) {
+function encode(source) {
 
-  if (value === void 0) return tag(UNDEFINED);
-  if (value === null) return tag(NULL);
+  if (source === void 0) return tag(UNDEFINED);
+  if (source === null) return tag(NULL);
+
+  // Unbox possible natives
+  var value = source.valueOf();
+  var type;
+
+  // NaN and Invalid Date not permitted
+  if (value !== value) {
+    if (source instanceof Date) throw new TypeError('Invalid Date not permitted');
+    throw new TypeError('NaN not permitted');
+  }
+
   if (value === false) return tag(FALSE);
   if (value === true) return tag(TRUE);
 
-  // Number
+  if (source instanceof Date) {
+    // Normalize -0 values to 0
+    if (Object.is(value, -0)) value = 0;
+    type = value < 0 ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
+    return tag(type, encodeNumber(value));
+  }
+
   if (typeof value === 'number') {
-    if (value !== value) throw new TypeError('NaN not allowed');
     if (value === Number.NEGATIVE_INFINITY) return tag(NEGATIVE_INFINITY);
     if (value === Number.POSITIVE_INFINITY) return tag(POSITIVE_INFINITY);
     // Normalize -0 values to 0
     if (Object.is(value, -0)) value = 0;
-    var type = value < 0 ? NEGATIVE_NUMBER : POSITIVE_NUMBER;
+    type = value < 0 ? NEGATIVE_NUMBER : POSITIVE_NUMBER;
     return tag(type, encodeNumber(value));
   }
 
-  // Date
-  if (value instanceof Date) {
-    var timestamp = value.valueOf();
-    if (timestamp !== timestamp) throw new TypeError('Invalid Date not allowed');
-    // Normalize -0 values to 0
-    if (Object.is(timestamp, -0)) timestamp = 0;
-    var type = timestamp < 0 ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
-    return tag(type, encodeNumber(timestamp));
-  }
-
-  // Buffer
-  // TODO also handle typed array
+  // TODO also handle typed array, blob, etc.
   if (value instanceof Buffer) {
     return tag(BUFFER, value);
   }
 
-  // String
   if (typeof value === 'string') {
     return tag(STRING, new Buffer(value, 'utf8'));
   }
 
-  // Arrays
+  // RegExp
+  if (value instanceof RegExp) {
+    // TODO
+    throw new Error('NYI');
+  }
+
+  // Function
+  if (typeof value === 'function') {
+    return tag(FUNCTION, encodeList(typewise.parse['function'](value)));
+  }
+
+  // Array
+  // TODO handle sparse arrays better
   if (Array.isArray(value)) return tag(ARRAY, encodeList(value));
 
   // Map
@@ -104,21 +121,12 @@ function encode(value) {
     return tag(SET, encodeList(set));
   }
 
-  // Function
-  if (typeof value === 'function') {
-    // FIXME this can fail on inline comments in head
-    var code = value.toString();
-    var params = code.slice(code.indexOf('(') + 1, code.indexOf(')')).match(/([^\s,]+)/g);
-    var body = code.slice(code.indexOf('{') + 1, code.lastIndexOf('}')).trim();
-    return tag(FUNCTION, encodeList((params || []).concat(body)));
-  }
-
   // TODO RegExp and other types from Structured Clone algorithm (Blob, File, FileList)
 }
 
 function decode(buffer) {
 
-  var type = buffer.get(0);
+  var type = buffer[0];
 
   // Nullary types
   if (~nullaryTypes.indexOf(type)) {
@@ -166,16 +174,6 @@ function tag(type, buffer) {
   return Buffer.concat([ type, buffer ]);
 }
 
-// TODO is there a fast native version for Buffer bytewise compare?
-function compare(a, b) {
-  var len = Math.min(a.length, b.length);
-  for (var i = 0; i < len; i++) {
-    var diff = a.get(i) - b.get(i);
-    if (diff) return diff;
-  }
-  return a.length - b.length;
-}
-
 function encodeNumber(value) {
   var buffer = new Buffer(8);
   if (value < 0) {
@@ -197,9 +195,9 @@ function encodeList(items) {
   // TODO pass around a map of references already encoded to detect cycles
   var buffers = [];
   var chunk;
-  for (var i = 0; i < items.length; ++i) {
+  for (var i = 0, length = items.length; i < length; ++i) {
     chunk = encode(items[i]);
-    var type = chunk.get(0);
+    var type = chunk[0];
     // We need to shift the bytes of string and buffer types to prevent confusion with the end byte
     if (~flatTypes.indexOf(type)) chunk = flatEscape(chunk);
     buffers.push(chunk);
@@ -210,10 +208,10 @@ function encodeList(items) {
 }
 
 function flatEscape(buffer) {
-  var bytes = [ buffer.get(0) ];
+  var bytes = [ buffer[0] ];
   var b;
-  for (var i = 1; i < buffer.length; ++i) {
-    b = buffer.get(i);
+  for (var i = 1, length = buffer.length; i < length; ++i) {
+    b = buffer[i];
     if (b > 253) {
       bytes.push(255, b);
     }
@@ -227,13 +225,13 @@ function flatEscape(buffer) {
 }
 
 function flatUnescape(buffer) {
-  var bytes = [ buffer.get(0) ];
+  var bytes = [ buffer[0] ];
   var b;
-  for (var i = 1; i < buffer.length; ++i) {
-    b = buffer.get(i);
+  for (var i = 1, length = buffer.length; i < length; ++i) {
+    b = buffer[i];
     // If 0xff replace with following byte
     if (b === 255) {
-      bytes.push(buffer.get(++i));
+      bytes.push(buffer[++i]);
     }
     // Otherwise subtract 1 from byte
     else {
@@ -246,7 +244,7 @@ function flatUnescape(buffer) {
 
 function parseHead(buffer) {
   // Parses and returns the first type on the buffer and the total bytes consumed
-  var type = buffer.get(0);
+  var type = buffer[0];
   // Nullary
   if (~nullaryTypes.indexOf(type)) return [ decode(new Buffer([ type ])), 1 ];
   // Fixed
@@ -254,10 +252,11 @@ function parseHead(buffer) {
   if (size) return [ decode(buffer.slice(0, size + 1)), size + 1 ];
   // Flat
   var index;
+  var length;
   if (~flatTypes.indexOf(type)) {
     // Find end byte
-    for (index = 1; index < buffer.length; ++index) {
-      if (buffer.get(index) === 0) break;
+    for (index = 1, length = buffer.length; index < length; ++index) {
+      if (buffer[index] === 0) break;
     }
     if (index >= buffer.length) throw new Error('No ending byte found for list');
     var chunk = flatUnescape(buffer.slice(0, index));
@@ -268,7 +267,7 @@ function parseHead(buffer) {
   var list = [];
   index = 1;
   var next;
-  while ((next = buffer.get(index)) !== 0) {
+  while ((next = buffer[index]) !== 0) {
     var result = parseHead(buffer.slice(index));
     list.push(result[0]);
     index += result[1];
@@ -280,16 +279,16 @@ function parseHead(buffer) {
 function structure(type, list) {
   if (type === ARRAY) return list;
   if (type === FUNCTION) {
-    return context.Function.apply(null, list);
+    return typewise.context.Function.apply(null, list);
   }
-  var i;
+  var i, length;
   if (type === MAP) {
     var nonStringKeys;
     var map = new Map();
-    for (i = 0; i < list.length; ++i) {
+    for (i = 0, length = list.length; i < length; ++i) {
       var key = list[i];
       map.set(key, list[++i]);
-      if (!nonStringKeys && typeof key !== 'string') nonStringKeys = true; 
+      if (!nonStringKeys && typeof key !== 'string') nonStringKeys = true;
     }
     if (nonStringKeys) return map;
 
@@ -302,7 +301,7 @@ function structure(type, list) {
   }
   if (type === SET) {
     var set = new Set();
-    for (i = 0; i < list.length; ++i) {
+    for (i = 0, length = list.length; i < length; ++i) {
       set.add(list[i]);
     }
     return set;
@@ -312,8 +311,8 @@ function structure(type, list) {
 
 function invert(buffer) {
   var bytes = [];
-  for (var i = 0; i < buffer.length; ++i) {
-    bytes.push(~buffer.get(i));
+  for (var i = 0, length = buffer.length; i < length; ++i) {
+    bytes.push(~buffer[i]);
   }
   return new Buffer(bytes);
 }

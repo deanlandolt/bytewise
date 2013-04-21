@@ -1,18 +1,17 @@
 {
   "name": "bytewise",
-  "version": "0.2.1",
-  "description": "Binary serialization of arbitrarily complex structures that sort bytewise",
+  "version": "0.3.0",
+  "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "bytewise.js",
   "dependencies": {
-    "es6-shim": "~0.6",
-    "ses": "*"
-  },
-  "devDependencies": {
-    "tap": "*"
+    "typewise": "~0.3"
   },
   "scripts": {
     "test": "tap test",
     "bench": "node bench"
+  },
+  "devDependencies": {
+    "tap": "*"
   },
   "repository": {
     "type": "git",
@@ -26,6 +25,7 @@
     "couchdb",
     "indexeddb"
   ],
-  "author": "Dean Landolt",
-  "license": "MIT"
+  "author": "Dean Landolt <dean@deanlandolt.com>",
+  "license": "MIT",
+  "readmeFilename": "README.md"
 }

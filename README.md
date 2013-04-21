@@ -1,6 +1,8 @@
 bytewise
 ========
 
+A binary serialization which sorts bytewise for arbitrarily complex data structures, respecting [typewise](https://github.com/deanlandolt/typewise) structured sorting efficiently.
+
 This library defines a total order of possible data structures allowed in a keyspace and a binary encoding which sorts bytewise in this order. The ordering is a superset of both the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This serialization makes it easy to take advantage of the benefits of structural indexing on systems with fast but naïve binary indexing.
 
 
@@ -8,7 +10,6 @@ This library defines a total order of possible data structures allowed in a keys
 
 This is the top level order of the various structures that may be encoded:
 
-* `undefined`
 * `null`
 * `false`
 * `true`
@@ -19,7 +20,9 @@ This is the top level order of the various structures that may be encoded:
 * `Set` (componentwise with elements sorted)
 * `Array` (componentwise)
 * `Map` (componentwise key/value pairs)
+* `RegExp` (stringified lexicographic)
 * `Function` (stringified lexicographic)
+* `undefined`
 
 
 These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in such a way as to carefully preserve the desired sort behavior, even in the precense of structural nested.
@@ -43,10 +46,10 @@ This serialization accomodates a wide range of javascript structures, but it is 
 
   // Many types can be respresented using only their type tag, a single byte
   // WARNING type tags are subject to change for the time being!
-  assert.equal(bytewise.encode(undefined).toString('binary'), '\x10');
-  assert.equal(bytewise.encode(null).toString('binary'), '\x11');
+  assert.equal(bytewise.encode(null).toString('binary'), '\x10');
   assert.equal(bytewise.encode(false).toString('binary'), '\x20');
   assert.equal(bytewise.encode(true).toString('binary'), '\x21');
+  assert.equal(bytewise.encode(undefined).toString('binary'), '\xe0');
 
   // Numbers are stored in 9 bytes -- 1 byte for the type tag and an 8 byte float
   assert.equal(hexEncode(12345), '4240c81c8000000000');
@@ -128,7 +131,6 @@ This serialization accomodates a wide range of javascript structures, but it is 
 
   ``` js
   var sorted = [
-    undefined,
     null,
     false,
     true,
@@ -139,10 +141,11 @@ This serialization accomodates a wide range of javascript structures, but it is 
     '',
     'foo √',
     [],
-    [ undefined ],
     [ { bar: 1 }, { bar: [ 'baz' ] } ],
+    [ undefined ],
     {},
-    { bar: 1 }
+    { bar: 1 },
+    undefined
   ];
 
   var result = samples.map(bytewise.encode).sort(bytewise.compare).map(bytewise.decode);
@@ -167,9 +170,13 @@ We reserve the hightest byte as an abstract tag representing a high-key sentinal
 
 It may be reasonably fast to encode and decode, but `JSON.stringify` is totally useless for storing objects as document records in a way that is of any use for range queries, where LevelDB and its ilk excel. Our serialization allows you to build indexes on top of your documents. Being unable to indexing purposes since it doesn't sort correctly. We fix that, and even expand on the range of serializable types available.
 
-### Multilevel language-sensitive comparison
+### Multilevel language-sensitive collation
 
 You have a bunch of strings in a paritcular language-specific strings you want to index, but you are know sure *how* sorted you need them -- queries may or may not care about case or punctionation differences, for instance. You can index your string as an array of weights, most to least specific, and prefixed by collation language (since our values are language-sensitive). There are [mechanisms available](http://www.unicode.org/reports/tr10/#Run-length_Compression) to compress this array to keep its size reasonable.
+
+### Full-text search
+
+Full-text indexing is a natural extension of the language-sensitive collation use case above. Add a little lexing and stemming and basic full text search isn't far off. Structured indexes can be employed to make other more interesting search features possible as well.
 
 ### CouchDB-style "joins"
 
@@ -192,14 +199,16 @@ The ordering chosen for some of the types is somewhat arbitrary. It is intention
   
 One possible breakdown for collection types:
 
-* sorted set (order unimportant and thus sorted using standard collation)
-  * sorted multiset, duplicates allowed
-* ordered set (order-preserving with distinct values)
+* unordered set (order unimportant and thus sorted using standard collation)
+  * unordered multiset, duplicates allowed
+* chain (ordered set) (order-preserving with distinct values)
   * ordered multiset, duplicates allowed (an array or tuple)
-* sorted map (keys as sorted set, objects are string-keyed maps)
-  * sorted multimap (keys as sorted multiset), duplicates allowed
+* unordered map (keys as unordered set, objects are string-keyed maps)
+  * unordered multimap (keys as unordered multiset), duplicates allowed
 * ordered map (keys as ordered set)
   * ordered multimap (keys as ordered multiset), duplicates allowed
+
+Perhaps we should always allow duplicates, and have the prevention of duplicates be a enforced at runtime by a schema of some sort.
 
 The primary distinction between collections are whether their items are unary (sets or arrays of elements) or binary (maps of keys and values). The secondary distinction is whether the collection preserves the order of its elements or not. For instance, arrays preserve the order of their elements while sets do not. Maps typically don't either, nor do javascript objects (even if they appear to at first). These are the two bits which characterize collection types that globally effect the sorting of the types.
 
@@ -219,13 +228,7 @@ Encoding and decoding is surely slower than the native `JSON` functions, but the
 
 ### Streams
 
-Where this serialization should really shine is streaming. Building a from stream from individually encoded elements should require little more than strait concatenation, and parsing a stream would be the same as parsing an array. 
-
-It's not typically useful for each and every array (and object) to be emitted as a stream, but it's not always the case that a stream purely consists of elements in a top-level array. There can be other "pivot points" where streams make sense. For instance, an array of records might be sensible to stream... but what if the record has a field that could be quite large (say, the binary contents of an image)? It should be possible to add a handler for this field in the parser, and when it reaches this kind of path it will emit a stream. The handler could have water-mark hints for how to break up the elements. If the value targeted to stream is a `String` or `Buffer` we'd have to be careful with unescaping, and for `Strings` specifically we'd also have to ensure we don't hack up multibyte characters.
-
-Alternatively we could define another bit for collections -- the *streaming* bit -- that lets the creator dictate what values are intended to stream. Of course, in order to avoid buffering all streams the consumer would still have to handle all streams during parsing. Still, this does seem like a real characterization flag for collection types, and like the *unique* flag, it shouldn't affect the global type sort so it should appear in the trailer bit. This would mean we'd need to steal another few bits in the flat sequence escapement, which isn't much of a problem. Worse, it would mean in order to tell when the stream bit is set the whole stream would have needed to be buffered, but this may not be such a bad thing, considering we'd need a pre-defined handler in order to avoid buffering anyway.
-
-With a sensible path language we could combine these two approaches. During parsing consumers could add a general handler which is given the path and a stream instance every time a stream collection is hit. A consumer could also add handlers specific to particular paths, the handler only being called when the path matches, and the underlying value is coerced into a stream, regardless of what type it is (though it may not make sense to bother building streams for scalar types). This could be a special case of a more general path handler that doesn't do stream coercion. If handlers are added no final parsed value may be needed, in which case no callback should be passed to the parser. Or all of these approaches could be combined -- stream handlers, path handlers, and a fully parsed value passed to the callback when complete.
+Where this serialization should really shine is streaming. Building a stream from individually encoded elements should require little more than strait concatenation, and parsing a stream would be the same as parsing an array. Parsing is a little more complex than msgpack and many other binary encodings because we have to use termination characters, not length specifiers, for certain types to keep from screwing up our collation invariants. This also means we have to do a little escapement dance, which costs a little extra too.
 
 
 ## License
