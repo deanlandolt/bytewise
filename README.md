@@ -60,8 +60,8 @@ This serialization accomodates a wide range of javascript structures, but it is 
   assert.equal(hexEncode(1.2345), '423ff3c083126e978d');
   assert.equal(hexEncode(-1.2345), '41c00c3f7ced916872');
 
-  // Serialization preserves the sign bit by default, so 0 is distinct from (but directly adjecent to) -0
-  assert.equal(hexEncode(-0), '41ffffffffffffffff');
+  // Serialization does not preserve the sign bit, so 0 is indistinguishable from -0
+  assert.equal(hexEncode(-0), '420000000000000000');
   assert.equal(hexEncode(0), '420000000000000000');
 
   // We can even serialize Infinity and -Infinity, though we just use their type tag
@@ -155,16 +155,13 @@ This serialization accomodates a wide range of javascript structures, but it is 
 
 ## Use Cases
 
-
 ### Numeric indexing
 
-This isn't surprisingly difficult to with vanilla LevelDB -- basic approaches require ugly hacks like left-padding numbers to make them sort lexicographically (and is prone to overflow problems). This serializes solves this problem correctly, taking advantage of properties of the byte sequences defined by the IEE 754 floating point standard.
+This is surprisingly difficult to with vanilla LevelDB -- basic approaches require ugly hacks like left-padding numbers to make them sort lexicographically (which is prone to overflow problems). You could write a one-off comparator function in C, but there a number of drawbacks to this as well. This serializaiton solves this problem in a clean, generalizable way, taking advantage of properties of the byte sequences defined by the IEE 754 floating point standard.
 
-### Namespaces and partitions
+### Namespaces, partitions and patterns
 
-This is another really basic ammenity that isn't as easy out of the box as it should be.
-
-We reserve the hightest byte as an abstract tag representing a high-key sentinal. When combined with structures like arrays this allows you to faithfully request all values in portion of the beginning of an array without any leaky hacks.
+This is another really basic and oft-needed ammenity that isn't very easy out of the box in LevelDB. We reserve the lowest and highest bytes as abstract tags representing low and high key sentinals, allowing you to faithfully request all values in any portion of an array. Arrays can be used as namespaces without any leaky hacks, or even more detailed slicing can be done per element to implement wildcards or even more powerful pattern semantics for specific elements in the array keyspace.
 
 ### Document storage
 
@@ -172,11 +169,11 @@ It may be reasonably fast to encode and decode, but `JSON.stringify` is totally 
 
 ### Multilevel language-sensitive collation
 
-You have a bunch of strings in a paritcular language-specific strings you want to index, but you are know sure *how* sorted you need them -- queries may or may not care about case or punctionation differences, for instance. You can index your string as an array of weights, most to least specific, and prefixed by collation language (since our values are language-sensitive). There are [mechanisms available](http://www.unicode.org/reports/tr10/#Run-length_Compression) to compress this array to keep its size reasonable.
+You have a bunch of strings in a paritcular language-specific strings you want to index, but at the time of indexing you're not sure *how* sorted you need them. Queries may or may not care about case or punctionation differences, for instance. You can index your string as an array of weights, most-to-least specific, and prefixed by collation language (since our values are language-sensitive). There are [mechanisms available](http://www.unicode.org/reports/tr10/#Run-length_Compression) to compress this array to keep its size reasonable.
 
 ### Full-text search
 
-Full-text indexing is a natural extension of the language-sensitive collation use case above. Add a little lexing and stemming and basic full text search isn't far off. Structured indexes can be employed to make other more interesting search features possible as well.
+Full-text indexing is a natural extension of the language-sensitive collation use case described above. Add a little lexing and stemming and basic full text search is close at hand. Structured indexes can be employed to make other more interesting search features possible as well.
 
 ### CouchDB-style "joins"
 
