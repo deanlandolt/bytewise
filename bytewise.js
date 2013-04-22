@@ -1,7 +1,32 @@
 'use strict';
+require('es6-shim');
 
-var typewise = require('typewise');
-var compare = typewise.compare.bytewise;
+var compare = function(a, b) {
+  var result;
+  for (var i = 0, length = Math.min(a.length, b.length); i < length; i++) {
+    result = a.get(i) - b.get(i);
+    if (result) return result;
+  }
+  return a.length - b.length;
+};
+
+var _type = {
+  'function': {
+    parse: function() {
+      throw new Error('Fallback for function reviving NYI');
+    },
+    serialize: function() {
+      throw new Error('Fallback for function serializing NYI');
+    }
+  }
+};
+
+try {
+  var typewise = require('typewise');
+  compare = typewise.compare.bytewise;
+  _type['function'] = typewise.type['function'];
+}
+catch (e) {}
 
 // Sort tags used to preserve binary total order
 // The tag is 1 byte, which gives us plenty of room to grow.
@@ -89,7 +114,7 @@ function encode(source) {
 
   // Function
   if (typeof value === 'function') {
-    return tag(FUNCTION, encodeList(typewise.parse['function'](value)));
+    return tag(FUNCTION, encodeList(_type['function'].serialize(value)));
   }
 
   // Array
@@ -279,7 +304,7 @@ function parseHead(buffer) {
 function structure(type, list) {
   if (type === ARRAY) return list;
   if (type === FUNCTION) {
-    return typewise.context.Function.apply(null, list);
+    return _type['function'].parse(list);
   }
   var i, length;
   if (type === MAP) {
