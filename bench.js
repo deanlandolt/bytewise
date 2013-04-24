@@ -1,46 +1,27 @@
 'use strict';
-var bytewise = require('bytewise');
+var bytewise = require('../bytewise');
 
 // This is just a simple little benchmark to compare against JSON
-function bench(fn, value, runs) {
+function run(name, fn, value, total) {
   var start = Date.now();
-  while (runs--) {
+  while (total--) {
     fn(value);
   }
-  return Date.now() - start;
-}
-
-function log(name, time) {
+  var time = Date.now() - start;
   console.log(name, ':', time, 'ms');
+  return time;
 }
 
-module.exports = bench;
+// The case we'll want to optimize for is (possibly nested) arrays of primitives
+var sample = [ 'foo', 123, [ 'bar', -4.56 ] ];
 
-if (require.main === module) {
-  var sample = [
-    null,
-    undefined,
-    false,
-    true,
-    {},
-    {
-      a: null,
-      b: [
-        'nested array',
-        { bb: 'nested object' }
-      ],
-      c: 'string value',
-      d: 123.456,
-      e: new Date('2000')
-    },
-    [],
-    [ 'another', 'array' ]
-  ];
+exports.all = function(total) {
+  console.log(total + ' runs each:');
+  run('JSON.stringify', JSON.stringify, sample, total);
+  run('bytewise.encode', bytewise.encode, sample, total);
 
-  var count = 10000;
-  log('JSON.stringify', bench(JSON.stringify, sample, count));
-  log('bytewise.encode', bench(bytewise.encode, sample, count));
+  run('JSON.parse', JSON.parse, JSON.stringify(sample), total);
+  run('bytewise.decode', bytewise.decode, bytewise.encode(sample), total);
+};
 
-  log('JSON.parse', bench(JSON.parse, JSON.stringify(sample), count));
-  log('bytewise.decode', bench(bytewise.decode, bytewise.encode(sample), count));
-}
+if (require.main === module) exports.all(10000);
