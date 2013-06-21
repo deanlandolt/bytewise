@@ -19,6 +19,7 @@ This is the top level order of the various structures that may be encoded:
 * `String` (lexicographic)
 * `Set` (componentwise with elements sorted)
 * `Array` (componentwise)
+* `Object` (componentwise string-keyed key/value pairs)
 * `Map` (componentwise key/value pairs)
 * `RegExp` (stringified lexicographic)
 * `Function` (stringified lexicographic)

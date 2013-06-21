@@ -1,5 +1,6 @@
 'use strict';
 require('es6-shim');
+// FIXME fix iterating keys in --harmony maps and sets
 
 var compare = function(a, b) {
   var result;
@@ -11,7 +12,7 @@ var compare = function(a, b) {
 };
 
 var _type = {
-  'function': {
+  function: {
     parse: function() {
       throw new Error('Fallback for function reviving NYI');
     },
@@ -23,8 +24,8 @@ var _type = {
 
 try {
   var typewise = require('typewise');
-  compare = typewise.compare.bytewise;
-  _type['function'] = typewise.type['function'];
+  compare = typewise.comparators.bytewise;
+  _type.function = typewise.types.function;
 }
 catch (e) {}
 
@@ -46,15 +47,16 @@ var BUFFER = 0x60;
 var STRING = 0x70;
 var SET = 0x90; // packed as array with members sorted and deduped
 var ARRAY = 0xa0; // escapes nested types with bit shifting where necessary to maintain order
-var MAP = 0xb0; // just like couchdb member order is preserved and matters for collation
-var REGEXP = 0xc0; // packed as tuple of two strings, the end being flags
-var FUNCTION = 0xc1; // packed as array, revived by safe eval in an isolated environment (if available)
-var UNDEFINED = 0xe0;
+var OBJECT = 0xb0; // just like couchdb member order is preserved and matters for collation
+var MAP = 0xc0; // just like couchdb member order is preserved and matters for collation
+var REGEXP = 0xd0; // packed as tuple of two strings, the end being flags
+var FUNCTION = 0xe0; // packed as array, revived by safe eval in an isolated environment (if available)
+var UNDEFINED = 0xf0;
 // 0xff reserved for high-key sentinal
 
 
 var flatTypes = [ BUFFER, STRING ];
-var structuredTypes = [ ARRAY, MAP, SET, FUNCTION ];
+var structuredTypes = [ ARRAY, OBJECT, MAP, SET, FUNCTION ];
 var nullaryTypes = [ NULL, FALSE, TRUE, NEGATIVE_INFINITY, POSITIVE_INFINITY, UNDEFINED ];
 var fixedTypes = {};
 fixedTypes[NEGATIVE_NUMBER] = 8;
@@ -122,31 +124,39 @@ function encode(source) {
   if (Array.isArray(value)) return tag(ARRAY, encodeList(value));
 
   // Map
-  if (value instanceof Map || typeof value == 'object') {
+  if (value instanceof Map) {
     // Packs into an array, e.g. [ k1, v1, k2, v2, ... ]
-    // Treats plain objects as string-keyed maps
-    var isMap = value instanceof Map;
     var items = [];
-    var keys = isMap ? value.keys() : Object.keys(value);
-    keys.forEach(function(key) {
+    getCollectionKeys(value).forEach(function(key) {
       items.push(key);
-      items.push(isMap ? value.get(key) : value[key]);
+      items.push(value.get(key));
     });
     return tag(MAP, encodeList(items));
   }
 
   // Set
   if (value instanceof Set) {
-    // iterate set and encode each item
-    // TODO a better way to iterate es6-shim Sets?
-    var set = value['[[SetData]]'].keys();
+    var set = getCollectionKeys(value);
     // encode, sort, and then decode the result array
     set = decode(set.map(encode).sort(compare));
-    // TODO if we could build a list by concatenating buffers we could bypass the decode/encodeList dance
+    // TODO we should be able to build a list by concatenating buffers -- bypass this decode/encodeList dance
     return tag(SET, encodeList(set));
   }
 
+  // Object
+  if (typeof value === 'object' && Object.prototype.toString.call(value) === '[object Object]') {
+    // Packs into an array, e.g. [ k1, v1, k2, v2, ... ]
+    var items = [];
+    Object.keys(value).forEach(function(key) {
+      items.push(key);
+      items.push(value[key]);
+    });
+    return tag(OBJECT, encodeList(items));
+  }
+
   // TODO RegExp and other types from Structured Clone algorithm (Blob, File, FileList)
+
+  throw new Error('Cannot encode unknown type: ' + source);
 }
 
 function decode(buffer) {
@@ -307,22 +317,19 @@ function structure(type, list) {
     return _type['function'].parse(list);
   }
   var i, length;
+  if (type === OBJECT) {
+    var object = Object.create(null);
+    for (i = 0, length = list.length; i < length; ++i) {
+      object[list[i]] = list[++i];
+    }
+    return object;
+  }
   if (type === MAP) {
-    var nonStringKeys;
     var map = new Map();
     for (i = 0, length = list.length; i < length; ++i) {
-      var key = list[i];
-      map.set(key, list[++i]);
-      if (!nonStringKeys && typeof key !== 'string') nonStringKeys = true;
+      map.set(list[i], list[++i]);
     }
-    if (nonStringKeys) return map;
-
-    // If all map keys are strings coerce into a plain object
-    var object = Object.create(null);
-    map.keys().forEach(function(key) {
-      object[key] = map.get(key);
-    });
-    return object;
+    return map;
   }
   if (type === SET) {
     var set = new Set();
@@ -331,6 +338,7 @@ function structure(type, list) {
     }
     return set;
   }
+  throw new Error('Unknown type: ' + type);
 }
 
 
@@ -341,6 +349,27 @@ function invert(buffer) {
   }
   return new Buffer(bytes);
 }
+
+
+function _shittyShimIterate(iterator) {
+  // FIXME update es6-shim to latest iteration spec and remove this garbage
+  var items = [];
+  var next;
+  try {
+    while (next = iterator.next()) {
+      items.push(next)
+    }
+  }
+  catch (e) {}
+  return items;
+}
+
+function getCollectionKeys(collection) {
+  // FIXME support --harmony collection iteration
+  if (!typeof collection.keys === 'function') return [];
+  return _shittyShimIterate(collection.keys());
+}
+
 
 exports.encode = encode;
 exports.decode = decode;

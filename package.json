@@ -1,14 +1,14 @@
 {
   "name": "bytewise",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "bytewise.js",
   "dependencies": {
-    "es6-shim": "*"
+    "es6-shim": ">=0.8"
   },
   "devDependencies": {
     "tap": "*",
-    "typewise": "~0.4"
+    "typewise": "~0.5"
   },
   "scripts": {
     "test": "tap test",
