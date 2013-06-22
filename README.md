@@ -28,12 +28,12 @@ This is the top level order of the various structures that may be encoded:
 
 These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in such a way as to carefully preserve the desired sort behavior, even in the precense of structural nested.
 
-For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag., same with `null` and `undefined`, and the boolean values `false`, `true`, . `Date` instances are stored just like `Number` instances, but as in IndexedDB, `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array`, `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values, reviving them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they can't do anything but calculate.
+For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag., same with `null` and `undefined`, and the boolean values `false`, `true`, . `Date` instances are stored just like `Number` instances, but as in IndexedDB, `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array`, `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values, reviving them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they can't do anything but calculate (if you have some optional dependencies installed).
 
 
 ## Unsupported Structures
 
-This serialization accomodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles, for instance, cannot be serialized. `NaN` is also illegal anywhere in a serialized value, as its presense is very likely indicative of an error. Moreover, sorting for `NaN` is completely nonsensical. (Similarly we may want to reject objects which are instances of `Error`.) Invalid `Date` objects are also illegal. Attempts to serialize any values which include these structures will throw a `TypeError`.
+This serialization accomodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles, for instance, cannot be serialized. `NaN` is also illegal anywhere in a serialized value, as its presense is very likely indicative of an error. Moreover, sorting for `NaN` is completely nonsensical. (Similarly we may want to reject objects which are instances of `Error`.) Invalid `Date` objects are also illegal. Since `WeakMap` objects cannot be enumerated they are also illegal. Attempts to serialize any values which include these structures will throw a `TypeError`.
 
 
 ## Usage
@@ -43,63 +43,60 @@ This serialization accomodates a wide range of javascript structures, but it is 
   ``` js
   var bytewise = require('bytewise');
   var assert = require('assert');
-  function hexEncode(buffer) { return bytewise.encode(buffer).toString('hex') }
+  // Helper to encode and then toString the buffer, defaults to binary but we'll use hex to show non-string values
+  function encode(value, encoding) { return bytewise.encode(value).toString(encoding || 'binary') }
 
   // Many types can be respresented using only their type tag, a single byte
   // WARNING type tags are subject to change for the time being!
-  assert.equal(bytewise.encode(null).toString('binary'), '\x10');
-  assert.equal(bytewise.encode(false).toString('binary'), '\x20');
-  assert.equal(bytewise.encode(true).toString('binary'), '\x21');
-  assert.equal(bytewise.encode(undefined).toString('binary'), '\xe0');
+  assert.equal(encode(null), '\x10');
+  assert.equal(encode(false), '\x20');
+  assert.equal(encode(true), '\x21');
+  assert.equal(encode(undefined), '\xf0');
 
   // Numbers are stored in 9 bytes -- 1 byte for the type tag and an 8 byte float
-  assert.equal(hexEncode(12345), '4240c81c8000000000');
+  assert.equal(encode(12345, 'hex'), '4240c81c8000000000');
   // Negative numbers are stored as positive numbers, but with a lower type tag and their bits inverted
-  assert.equal(hexEncode(-12345), '41bf37e37fffffffff');
+  assert.equal(encode(-12345, 'hex'), '41bf37e37fffffffff');
 
   // All numbers, integer or floating point, are stored as IEEE 754 doubles
-  assert.equal(hexEncode(1.2345), '423ff3c083126e978d');
-  assert.equal(hexEncode(-1.2345), '41c00c3f7ced916872');
+  assert.equal(encode(1.2345, 'hex'), '423ff3c083126e978d');
+  assert.equal(encode(-1.2345, 'hex'), '41c00c3f7ced916872');
 
   // Serialization does not preserve the sign bit, so 0 is indistinguishable from -0
-  assert.equal(hexEncode(-0), '420000000000000000');
-  assert.equal(hexEncode(0), '420000000000000000');
+  assert.equal(encode(-0, 'hex'), '420000000000000000');
+  assert.equal(encode(0, 'hex'), '420000000000000000');
 
   // We can even serialize Infinity and -Infinity, though we just use their type tag
-  assert.equal(hexEncode(-Infinity), '40');
-  assert.equal(hexEncode(Infinity), '43');
+  assert.equal(encode(-Infinity, 'hex'), '40');
+  assert.equal(encode(Infinity, 'hex'), '43');
 
   // Dates are stored just like numbers, but with different (and higher) type tags
-  assert.equal(hexEncode(new Date(-12345)), '51bf37e37fffffffff');
-  assert.equal(hexEncode(new Date(12345)), '5240c81c8000000000');
+  assert.equal(encode(new Date(-12345), 'hex'), '51bf37e37fffffffff');
+  assert.equal(encode(new Date(12345), 'hex'), '5240c81c8000000000');
 
-  // Strings are as utf8 prefixed with their type tag
-  assert.equal(hexEncode('foo'), '70666f6f');
+  // Strings are encoded as utf8, prefixed with their type tag (0x70, or the "p" character)
+  assert.equal(encode('foo'), 'pfoo');
+  assert.equal(encode('föo'), 'pfÃ¶o');
 
-  // That same string encoded in the raw
-  assert.equal(bytewise.encode('foo').toString('binary'), '\x70foo')
-
-  // Buffers are completely left alone, other than being prefixed with their type tag
-  assert.equal(hexEncode(new Buffer('ff00fe01', 'hex')), '60ff00fe01');
+  // Buffers are also left alone, other than being prefixed with their type tag (0x60)
+  assert.equal(encode(new Buffer('ff00fe01', 'hex'), 'hex'), '60ff00fe01');
 
   // Arrays are just a series of values terminated with a null byte
-  assert.equal(hexEncode([ true, -1.2345 ]), 'a02141c00c3f7ced91687200');
+  assert.equal(encode([ true, -1.2345 ], 'hex'), 'a02141c00c3f7ced91687200');
 
-  // When embedded in complex structures (like arrays) Strings and Buffers have their bytes shifted
-  // to make way for a null termination byte to signal their end
-  assert.equal(hexEncode([ 'foo' ]), 'a0706770700000');
+  // Strings are also legible when embedded in complex structures like arrays
+  // Items in arrays are deliminted by null bytes, and a final end byte marks the end of the array
+  assert.equal(encode([ 'foo' ]), '\xa0pfoo\x00\x00');
 
-  // That same string encoded in the raw -- note the 'gpp', the escaped version of 'foo'
-  assert.equal(bytewise.encode(['foo']).toString('binary'), '\xa0\x70gpp\x00\x00');
+  // The 0x01 and 0xfe bytes are used to escape high and low bytes while preserving the correct collation
+  assert.equal(encode([ new Buffer('ff00fe01', 'hex') ], 'hex'), 'a060fefe0101fefd01020000');
 
-  // The 0xff byte is used as an escape to encode 0xfe and 0xff bytes, preserving the correct collation
-  assert.equal(hexEncode([ new Buffer('ff00fe01', 'hex') ]), 'a060ffff01fffe020000');
-
-  // Complex types like arrays can be arbitrarily nested, and fixed-sized types never need a terminating byte
-  assert.equal(hexEncode([ [ true, 'foo' ], -1.2345 ]), 'a0a02170677070000041c00c3f7ced91687200');
+  // Complex types like arrays can be arbitrarily nested, and fixed-sized types don't require a terminating byte
+  assert.equal(encode([ [ 'foo', true ], 'bar' ]), '\xa0\xa0\pfoo\x00\x21\x00\pbar\x00\x00');
 
   // Objects are just string-keyed maps, stored like arrays: [ k1, v1, k2, v2, ... ]
-  assert.equal(hexEncode({ foo: true, bar: -1.2345 }), 'b0706770700021706362730041c00c3f7ced91687200');
+  assert.equal(encode({ foo: true, bar: 'baz' }), '\xb0pfoo\x00\x21\pbar\x00\pbaz\x00\x00');
+  
   ```
 
 

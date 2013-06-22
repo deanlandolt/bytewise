@@ -4,7 +4,7 @@ require('es6-shim');
 
 var compare = function(a, b) {
   var result;
-  for (var i = 0, length = Math.min(a.length, b.length); i < length; i++) {
+  for (var i = 0, end = Math.min(a.length, b.length); i < end; i++) {
     result = a.get(i) - b.get(i);
     if (result) return result;
   }
@@ -120,8 +120,10 @@ function encode(source) {
   }
 
   // Array
-  // TODO handle sparse arrays better
-  if (Array.isArray(value)) return tag(ARRAY, encodeList(value));
+  // TODO better handling for sparse arrays
+  if (Array.isArray(value)) {
+    return tag(ARRAY, encodeList(value));
+  }
 
   // Map
   if (value instanceof Map) {
@@ -196,7 +198,9 @@ function decode(buffer) {
   // Structured types
   if (~structuredTypes.indexOf(type)) {
     var result = parseHead(buffer);
-    if (result[1] !== buffer.length) throw new Error('List deserialization fail: ' + result[1] + '!=' + buffer.length);
+    if (result[1] !== buffer.length) {
+      throw new Error('List deserialization fail: ' + result[1] + '!=' + buffer.length);
+    }
     return result[0];
   }
 
@@ -204,8 +208,10 @@ function decode(buffer) {
 
 
 function tag(type, buffer) {
+  // Just return tag byte for nullary types (no buffer provided)
   type = new Buffer([ type ]);
   if (!buffer) return type;
+  // Prepend a type tag byte to buffer
   return Buffer.concat([ type, buffer ]);
 }
 
@@ -230,10 +236,10 @@ function encodeList(items) {
   // TODO pass around a map of references already encoded to detect cycles
   var buffers = [];
   var chunk;
-  for (var i = 0, length = items.length; i < length; ++i) {
+  for (var i = 0, end = items.length; i < end; ++i) {
     chunk = encode(items[i]);
     var type = chunk[0];
-    // We need to shift the bytes of string and buffer types to prevent confusion with the end byte
+    // We need to escape a few bytes in string and buffer types to prevent confusion with the end byte
     if (~flatTypes.indexOf(type)) chunk = flatEscape(chunk);
     buffers.push(chunk);
   }
@@ -242,36 +248,36 @@ function encodeList(items) {
   return Buffer.concat(buffers);
 }
 
+// TODO expose in public API
 function flatEscape(buffer) {
-  var bytes = [ buffer[0] ];
-  var b;
-  for (var i = 1, length = buffer.length; i < length; ++i) {
+  // Escape high and low bytes 0x00 and 0xff (and by necessity, 0x01 and 0xfe)
+  var b, bytes = [];
+  for (var i = 0, end = buffer.length; i < end; ++i) {
     b = buffer[i];
-    if (b > 253) {
-      bytes.push(255, b);
-    }
-    else {
-      bytes.push(b + 1);
-    }
+    // Escape low bytes with 0x01 and by adding 1
+    if (b === 0x01 || b === 0x00) bytes.push(0x01, b + 1);
+    // Escape high bytes with 0xfe and by subtracting 1
+    else if (b === 0xfe || b === 0xff) bytes.push(0xfe, b - 1);
+    // Otherwise no escapement needed
+    else bytes.push(b);
   }
   // Add end byte
   bytes.push(0);
   return new Buffer(bytes);
 }
 
+// TODO expose in public API
 function flatUnescape(buffer) {
-  var bytes = [ buffer[0] ];
-  var b;
-  for (var i = 1, length = buffer.length; i < length; ++i) {
+  var b, bytes = [];
+  // Don't escape last byte
+  for (var i = 0, end = buffer.length; i < end; ++i) {
     b = buffer[i];
-    // If 0xff replace with following byte
-    if (b === 255) {
-      bytes.push(buffer[++i]);
-    }
-    // Otherwise subtract 1 from byte
-    else {
-      bytes.push(b - 1);
-    }
+    // If low-byte escape tag use the following byte minus 1
+    if (b === 0x01) bytes.push(buffer[++i] - 1);
+    // If high-byte escape tag use the following byte plus 1
+    else if (b === 0xfe) bytes.push(buffer[++i] + 1);
+    // Otherwise no unescapement needed
+    else bytes.push(b);
   }
   return new Buffer(bytes);
 }
@@ -284,14 +290,14 @@ function parseHead(buffer) {
   if (~nullaryTypes.indexOf(type)) return [ decode(new Buffer([ type ])), 1 ];
   // Fixed
   var size = fixedTypes[type];
-  if (size) return [ decode(buffer.slice(0, size + 1)), size + 1 ];
+  if (size++) return [ decode(buffer.slice(0, size)), size ];
   // Flat
   var index;
-  var length;
+  var end;
   if (~flatTypes.indexOf(type)) {
     // Find end byte
-    for (index = 1, length = buffer.length; index < length; ++index) {
-      if (buffer[index] === 0) break;
+    for (index = 1, end = buffer.length; index < end; ++index) {
+      if (buffer[index] === 0x00) break;
     }
     if (index >= buffer.length) throw new Error('No ending byte found for list');
     var chunk = flatUnescape(buffer.slice(0, index));
@@ -316,24 +322,24 @@ function structure(type, list) {
   if (type === FUNCTION) {
     return _type['function'].parse(list);
   }
-  var i, length;
+  var i, end;
   if (type === OBJECT) {
     var object = Object.create(null);
-    for (i = 0, length = list.length; i < length; ++i) {
+    for (i = 0, end = list.length; i < end; ++i) {
       object[list[i]] = list[++i];
     }
     return object;
   }
   if (type === MAP) {
     var map = new Map();
-    for (i = 0, length = list.length; i < length; ++i) {
+    for (i = 0, end = list.length; i < end; ++i) {
       map.set(list[i], list[++i]);
     }
     return map;
   }
   if (type === SET) {
     var set = new Set();
-    for (i = 0, length = list.length; i < length; ++i) {
+    for (i = 0, end = list.length; i < end; ++i) {
       set.add(list[i]);
     }
     return set;
@@ -344,14 +350,14 @@ function structure(type, list) {
 
 function invert(buffer) {
   var bytes = [];
-  for (var i = 0, length = buffer.length; i < length; ++i) {
+  for (var i = 0, end = buffer.length; i < end; ++i) {
     bytes.push(~buffer[i]);
   }
   return new Buffer(bytes);
 }
 
 
-function _shittyShimIterate(iterator) {
+function _bastardizedIterate(iterator) {
   // FIXME update es6-shim to latest iteration spec and remove this garbage
   var items = [];
   var next;
@@ -367,7 +373,7 @@ function _shittyShimIterate(iterator) {
 function getCollectionKeys(collection) {
   // FIXME support --harmony collection iteration
   if (!typeof collection.keys === 'function') return [];
-  return _shittyShimIterate(collection.keys());
+  return _bastardizedIterate(collection.keys());
 }
 
 
