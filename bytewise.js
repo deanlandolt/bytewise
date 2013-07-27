@@ -1,5 +1,6 @@
 'use strict';
 require('es6-shim');
+var bops = require('bops')
 // FIXME fix iterating keys in --harmony maps and sets
 
 var compare = function(a, b) {
@@ -99,19 +100,18 @@ function encode(source) {
     return tag(type, encodeNumber(value));
   }
 
-  // TODO also handle typed array, blob, etc.
-  if (value instanceof Buffer) {
+  if (bops.is(value)) {
     return tag(BUFFER, value);
   }
 
   if (typeof value === 'string') {
-    return tag(STRING, new Buffer(value, 'utf8'));
+    return tag(STRING, bops.from(value, 'utf8'));
   }
 
   // RegExp
   if (value instanceof RegExp) {
     // TODO
-    throw new Error('NYI');
+    throw new Error('Not Implemented Yet');
   }
 
   // Function
@@ -163,7 +163,7 @@ function encode(source) {
 
 function decode(buffer) {
 
-  var type = buffer[0];
+  var type = buffer.readUInt8(0, buffer);
 
   // Nullary types
   if (~nullaryTypes.indexOf(type)) {
@@ -178,7 +178,7 @@ function decode(buffer) {
   }
 
   // Fixed size types
-  var chunk = buffer.slice(1);
+  var chunk = bops.subarray(buffer, 1);
   var chunkSize = fixedTypes[type];
   if (chunkSize) {
     if (chunk.length !== chunkSize) throw new Error('Invalid size for buffer: ' + buffer);
@@ -193,15 +193,15 @@ function decode(buffer) {
 
   // Flat types
   if (type === BUFFER) return chunk;
-  if (type === STRING) return chunk.toString('utf8');
+  if (type === STRING) return bops.to(chunk, 'utf8');
 
   // Structured types
   if (~structuredTypes.indexOf(type)) {
     var result = parseHead(buffer);
-    if (result[1] !== buffer.length) {
-      throw new Error('List deserialization fail: ' + result[1] + '!=' + buffer.length);
+    if (bops.readUInt8(result, 1) !== buffer.length) {
+      throw new Error('List deserialization fail: ' + bops.readUInt8(result, 1) + '!=' + bops.length(buffer));
     }
-    return result[0];
+    return bops.readUInt8(result, 0);
   }
 
 }
@@ -209,25 +209,25 @@ function decode(buffer) {
 
 function tag(type, buffer) {
   // Just return tag byte for nullary types (no buffer provided)
-  type = new Buffer([ type ]);
+  type = bops.from([ type ]);
   if (!buffer) return type;
   // Prepend a type tag byte to buffer
-  return Buffer.concat([ type, buffer ]);
+  return bops.join([ type, buffer ]);
 }
 
 function encodeNumber(value) {
-  var buffer = new Buffer(8);
+  var buffer = bops.create(8);
   if (value < 0) {
-    buffer.writeDoubleBE(-value, 0);
+    bops.writeDoubleBE(buffer, -value, 0);
     return invert(buffer);
   }
-  buffer.writeDoubleBE(value, 0);
+  bops.writeDoubleBE(buffer, value, 0);
   return buffer;
 }
 
 function decodeNumber(buffer, negative) {
   if (negative) buffer = invert(buffer);
-  var value = buffer.readDoubleBE(0);
+  var value = bops.readDoubleBE(buffer, 0);
   return negative ? -value : value;
 }
 
@@ -238,13 +238,13 @@ function encodeList(items) {
   var chunk;
   for (var i = 0, end = items.length; i < end; ++i) {
     chunk = encode(items[i]);
-    var type = chunk[0];
+    var type = bops.readUInt8(chunk, 0);
     // We need to escape a few bytes in string and buffer types to prevent confusion with the end byte
     if (~flatTypes.indexOf(type)) chunk = flatEscape(chunk);
     buffers.push(chunk);
   }
   // Close the list with an end byte
-  buffers.push(new Buffer([ 0 ]));
+  buffers.push(bops.create([ 0 ]));
   return Buffer.concat(buffers);
 }
 
@@ -263,7 +263,7 @@ function flatEscape(buffer) {
   }
   // Add end byte
   bytes.push(0);
-  return new Buffer(bytes);
+  return bops.from(bytes);
 }
 
 // TODO expose in public API
@@ -271,36 +271,36 @@ function flatUnescape(buffer) {
   var b, bytes = [];
   // Don't escape last byte
   for (var i = 0, end = buffer.length; i < end; ++i) {
-    b = buffer[i];
+    b = bops.readUInt8(buffer, i);
     // If low-byte escape tag use the following byte minus 1
-    if (b === 0x01) bytes.push(buffer[++i] - 1);
+    if (b === 0x01) bytes.push(bops.readUInt8(buffer, ++i) - 1);
     // If high-byte escape tag use the following byte plus 1
-    else if (b === 0xfe) bytes.push(buffer[++i] + 1);
+    else if (b === 0xfe) bytes.push(bops.readUInt8(buffer, ++i) + 1);
     // Otherwise no unescapement needed
     else bytes.push(b);
   }
-  return new Buffer(bytes);
+  return bops.from(bytes);
 }
 
 
 function parseHead(buffer) {
   // Parses and returns the first type on the buffer and the total bytes consumed
-  var type = buffer[0];
+  var type = bops.readUInt8(buffer, 0);
   // Nullary
-  if (~nullaryTypes.indexOf(type)) return [ decode(new Buffer([ type ])), 1 ];
+  if (~nullaryTypes.indexOf(type)) return [ decode(bops.from([ type ])), 1 ];
   // Fixed
   var size = fixedTypes[type];
-  if (size++) return [ decode(buffer.slice(0, size)), size ];
+  if (size++) return [ decode(bops.subarray(buffer, 0, size)), size ];
   // Flat
   var index;
   var end;
   if (~flatTypes.indexOf(type)) {
     // Find end byte
     for (index = 1, end = buffer.length; index < end; ++index) {
-      if (buffer[index] === 0x00) break;
+      if (bops.readUInt8(buffer, index) === 0x00) break;
     }
     if (index >= buffer.length) throw new Error('No ending byte found for list');
-    var chunk = flatUnescape(buffer.slice(0, index));
+    var chunk = flatUnescape(bops.subarray(buffer, 0, index));
     // Add 1 to index to skip over end byte
     return [ decode(chunk), index + 1 ];
   }
@@ -308,10 +308,11 @@ function parseHead(buffer) {
   var list = [];
   index = 1;
   var next;
-  while ((next = buffer[index]) !== 0) {
-    var result = parseHead(buffer.slice(index));
-    list.push(result[0]);
-    index += result[1];
+
+  while ((next = bops.readUInt8(buffer, index)) !== 0) {
+    var result = parseHead(bops.subarray(buffer, index));
+    list.push(bops.readUInt8(result, 0));
+    index += bops.readUInt8(result, 1);
     if (index >= buffer.length) throw new Error('No ending byte found for nested list');
   }
   return [ structure(type, list), index + 1 ];
@@ -351,9 +352,9 @@ function structure(type, list) {
 function invert(buffer) {
   var bytes = [];
   for (var i = 0, end = buffer.length; i < end; ++i) {
-    bytes.push(~buffer[i]);
+    bytes.push(~bops.readUInt8(buffer, i));
   }
-  return new Buffer(bytes);
+  return bops.from(bytes);
 }
 
 
