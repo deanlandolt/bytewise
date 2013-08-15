@@ -377,7 +377,8 @@ function getCollectionKeys(collection) {
   return _bastardizedIterate(collection.keys());
 }
 
-
 exports.encode = encode;
 exports.decode = decode;
 exports.compare = compare;
+exports.buffer = true
+exports.type = 'bytewise'
