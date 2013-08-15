@@ -1,5 +1,6 @@
 
 var bytewise = require('../')
+var bytewiseHex = require('../hex')
 var typewise = require('typewise')
 var test = require('tap').test
 var bops = require('bops')
@@ -32,9 +33,9 @@ test('sorts with same order when hex encoded', function (t) {
 
   var sorted = 
   example
-    .map(bytewise.hex.encode)
+    .map(bytewiseHex.encode)
     .sort()
-    .map(bytewise.hex.decode)
+    .map(bytewiseHex.decode)
 
   t.deepEqual(sorted, example)
   t.end()

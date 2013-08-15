@@ -382,13 +382,3 @@ exports.decode = decode;
 exports.compare = compare;
 exports.buffer = true
 exports.type = 'bytewise'
-
-exports.hex = {
-  encode: function (val) {
-    return bops.to(encode(val), 'hex')
-  },
-  decode: function (val) {
-    return decode(bops.from(val, 'hex'))
-  },
-  buffer: false, type: 'bytewise-hex'
-}
