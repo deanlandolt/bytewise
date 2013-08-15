@@ -21,15 +21,23 @@ test('sorts with same order when encoded', function (t) {
   var sorted = 
   example
     .map(bytewise.encode)
-    .map(function (e) {
-      return bops.to(e, 'hex')
-    })
-    .sort()
-    .map(function (e) {
-      return bops.from(e, 'hex')
-    })
+    .sort(bytewise.compare)
     .map(bytewise.decode)
 
   t.deepEqual(sorted, example)
   t.end()
 })
+
+test('sorts with same order when hex encoded', function (t) {
+
+  var sorted = 
+  example
+    .map(bytewise.hex.encode)
+    .sort()
+    .map(bytewise.hex.decode)
+
+  t.deepEqual(sorted, example)
+  t.end()
+})
+
+
