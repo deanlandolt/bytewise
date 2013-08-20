@@ -2,7 +2,7 @@
 var bytewise = require('../')
 var bytewiseHex = require('../hex')
 var typewise = require('typewise')
-var test = require('tap').test
+var test = require('tape')
 var bops = require('bops')
 
 var example = [

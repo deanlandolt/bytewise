@@ -5,10 +5,11 @@
   "main": "bytewise.js",
   "dependencies": {
     "es6-shim": "~0.8",
-    "bops" : "~0.0.6"
+    "bops": "~0.0.6"
   },
   "devDependencies": {
     "tap": "*",
+    "tape": "1.0",
     "typewise": "~0.5"
   },
   "scripts": {
@@ -29,5 +30,21 @@
   ],
   "author": "Dean Landolt <dean@deanlandolt.com>",
   "license": "MIT",
-  "readmeFilename": "README.md"
+  "readmeFilename": "README.md",
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/8..latest",
+      "firefox/17..latest",
+      "firefox/nightly",
+      "chrome/22..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest",
+      "android-browser/4.2..latest"
+    ]
+  }
 }

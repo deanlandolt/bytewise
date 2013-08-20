@@ -3,6 +3,7 @@
 var bytewise = require('../bytewise');
 var typewise = require('typewise');
 var util = require('typewise/test/util');
+var tape = require('tape')
 
 var sample, shuffled;
 
@@ -15,12 +16,21 @@ shuffled = util.shuffle(sample.slice());
 typewise.equal(sample, shuffled.map(bytewise.encode).sort(bytewise.compare).map(bytewise.decode));
 
 sample = util.shuffle(sample.slice());
+
+
 var hash = {
   start: true,
   hash: sample,
   nested: {
-    list: [ sample ]
+    list: [sample]
   },
   end: {}
 };
-typewise.equal(sample, bytewise.decode(bytewise.encode(sample)));
+
+
+tape('simple equal', function (t) {
+  t.doesNotThrow(function () {
+    typewise.equal(sample, bytewise.decode(bytewise.encode(sample)))
+  })
+  t.end()
+})
