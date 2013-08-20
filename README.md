@@ -3,6 +3,7 @@ bytewise
 
 A binary serialization which sorts bytewise for arbitrarily complex data structures, respecting [typewise](https://github.com/deanlandolt/typewise) structured sorting efficiently.
 
+[![build status](https://secure.travis-ci.org/deanlandolt/bytewise.png)](http://travis-ci.org/deanlandolt/bytewise)
 [![testling badge](https://ci.testling.com/deanlandolt/bytewise.png)](https://ci.testling.com/deanlandolt/bytewise)
 
 This library defines a total order of possible data structures allowed in a keyspace and a binary encoding which sorts bytewise in this order. The ordering is a superset of both the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This serialization makes it easy to take advantage of the benefits of structural indexing on systems with fast but naïve binary indexing.
