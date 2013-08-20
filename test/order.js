@@ -12,9 +12,9 @@ var example = [
   4,
   'hello',
   ['foo', 'bar', 'baz'],
-  {whatever: {}},
+  {whatever: true},
   //this breaks  
-  //{k: 'X'}
+  //  {k: 'X', b: true}
 ].sort(typewise.compare)
 
 test('sorts with same order when encoded', function (t) {
@@ -25,7 +25,11 @@ test('sorts with same order when encoded', function (t) {
     .sort(bytewise.compare)
     .map(bytewise.decode)
 
-  t.deepEqual(sorted, example)
+  t.equal(
+    bops.to(bytewise.encode(sorted),'hex'),
+    bops.to(bytewise.encode(example),'hex')
+  )
+  
   t.end()
 })
 
@@ -37,7 +41,10 @@ test('sorts with same order when hex encoded', function (t) {
     .sort()
     .map(bytewiseHex.decode)
 
-  t.deepEqual(sorted, example)
+  t.equal(
+    bops.to(bytewise.encode(sorted),'hex'),
+    bops.to(bytewise.encode(example),'hex')
+  )
   t.end()
 })
 
