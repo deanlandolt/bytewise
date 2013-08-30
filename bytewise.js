@@ -72,7 +72,8 @@ function encode(source) {
   if (source === null) return tag(NULL);
 
   // Unbox possible natives
-  var value = source.valueOf();
+
+  var value = source != null && source.valueOf ? source.valueOf() : source;
   var type;
 
   // NaN and Invalid Date not permitted
@@ -163,7 +164,7 @@ function encode(source) {
 
 function decode(buffer) {
 
-  var type = buffer.readUInt8(0, buffer);
+  var type = bops.readUInt8(buffer, 0);
 
   // Nullary types
   if (~nullaryTypes.indexOf(type)) {
@@ -245,7 +246,7 @@ function encodeList(items) {
   }
   // Close the list with an end byte
   buffers.push(bops.create([ 0 ]));
-  return Buffer.concat(buffers);
+  return bops.join(buffers);
 }
 
 // TODO expose in public API
