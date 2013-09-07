@@ -1,5 +1,6 @@
 'use strict';
 require('es6-shim');
+
 var bops = require('bops')
 // FIXME fix iterating keys in --harmony maps and sets
 
@@ -23,6 +24,7 @@ var _type = {
   }
 };
 
+// Attempt to use utilities from optional `typewise` dependency
 try {
   var typewise = require('typewise');
   compare = typewise.comparators.bytewise;
@@ -305,11 +307,11 @@ function parseHead(buffer) {
     // Add 1 to index to skip over end byte
     return [ decode(chunk), index + 1 ];
   }
+  
   // Nested, recurse for each item
   var list = [];
   index = 1;
   var next;
-
   while ((next = bops.readUInt8(buffer, index)) !== 0) {
     var result = parseHead(bops.subarray(buffer, index));
     list.push(bops.readUInt8(result, 0));
@@ -381,5 +383,5 @@ function getCollectionKeys(collection) {
 exports.encode = encode;
 exports.decode = decode;
 exports.compare = compare;
-exports.buffer = true
-exports.type = 'bytewise'
+exports.buffer = true;
+exports.type = 'bytewise';
