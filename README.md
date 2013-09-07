@@ -31,12 +31,12 @@ This is the top level order of the various structures that may be encoded:
 
 These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in such a way as to carefully preserve the desired sort behavior, even in the precense of structural nested.
 
-For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag., same with `null` and `undefined`, and the boolean values `false`, `true`, . `Date` instances are stored just like `Number` instances, but as in IndexedDB, `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array`, `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values, reviving them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they can't do anything but calculate (if you have some optional dependencies installed).
+For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag. The same can be said of `null` and `undefined`, and the boolean values `false`, `true`. `Date` instances are stored just like `Number` instances -- but as in IndexedDB -- `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array` and `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values and (with the optional `typewise` dependency) revive them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they are powerless to do anything but calculate.
 
 
 ## Unsupported Structures
 
-This serialization accomodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles, for instance, cannot be serialized. `NaN` is also illegal anywhere in a serialized value, as its presense is very likely indicative of an error. Moreover, sorting for `NaN` is completely nonsensical. (Similarly we may want to reject objects which are instances of `Error`.) Invalid `Date` objects are also illegal. Since `WeakMap` objects cannot be enumerated they are also illegal. Attempts to serialize any values which include these structures will throw a `TypeError`.
+This serialization accomodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles cannot be serialized. `NaN` is also illegal anywhere in a serialized value -- its presense very likely indicates of an error, but more importantly sorting on `NaN` is nonsensical by definition. (Similarly we may want to reject objects which are instances of `Error`.) Invalid `Date` objects are also illegal. Since `WeakMap` and `WeakSet` objects cannot be enumerated they are impossible to serialize. Attempts to serialize any values which include these structures should throw a `TypeError`.
 
 
 ## Usage
@@ -158,7 +158,7 @@ This serialization accomodates a wide range of javascript structures, but it is 
 
 ### Numeric indexing
 
-This is surprisingly difficult to with vanilla LevelDB -- basic approaches require ugly hacks like left-padding numbers to make them sort lexicographically (which is prone to overflow problems). You could write a one-off comparator function in C, but there a number of drawbacks to this as well. This serializaiton solves this problem in a clean, generalizable way, taking advantage of properties of the byte sequences defined by the IEE 754 floating point standard.
+This is surprisingly difficult to with vanilla LevelDB -- basic approaches require ugly hacks like left-padding numbers to make them sort lexicographically (which is prone to overflow problems). You could write a one-off comparator function in C, but there a number of drawbacks to this as well. This serializaiton solves this problem in a clean and generalized way, in part by taking advantage of properties of the byte sequences defined by the IEE 754 floating point standard.
 
 ### Namespaces, partitions and patterns
 
@@ -166,7 +166,7 @@ This is another really basic and oft-needed ammenity that isn't very easy out of
 
 ### Document storage
 
-It may be reasonably fast to encode and decode, but `JSON.stringify` is totally useless for storing objects as document records in a way that is of any use for range queries, where LevelDB and its ilk excel. Our serialization allows you to build indexes on top of your documents. Being unable to indexing purposes since it doesn't sort correctly. We fix that, and even expand on the range of serializable types available.
+It may be reasonably fast to encode and decode, but `JSON.stringify` is totally useless for storing objects as document records in a way that is of any use for range queries, where LevelDB and its ilk excel. This serialization allows you to build indexes on top of your documents, as well as expanding on the range of serializable types available in JSON.
 
 ### Multilevel language-sensitive collation
 
@@ -182,11 +182,7 @@ Build a view that colocates related subrecords, taking advantage of component-wi
 
 ### Emulating other systems
 
-Clients that wish to employ a subset of the full range of possible types above can preprocess values to coerce them into the desired simpler forms before serializing. For instance, if you were to build CouchDB-style indexing you could round-trip values through a `JSON` encode cycle (to get just the subset of types supported by CouchDB) before passing to `encode`, resulting in a collation that is identical to CouchDB. Emulating IndexedDB's collation would require preprocessing away `Buffer` data and `undefined` values. (TODO what else? Does it normalize `-0` values to `0`?)
-
-### Embedding in the browser
-
-While this particular serialization is only useful for binary indexing, the collation defined can easily be extended to embed inside indexeddb. At the top level all values would be arrays with the type tag as the first value. Any binary data would have be transcoded to a string in a manner that preserves sort order. Otherwise we can lean on IndexedDB's default sort behavior as much as possible.
+Clients that wish to employ a subset of the full range of possible types above can preprocess values to coerce them into the desired simpler forms before serializing. For instance, if you were to build CouchDB-style indexing you could round-trip values through a `JSON` encode cycle (to get just the subset of types supported by CouchDB) before passing to `encode`, resulting in a collation that is identical to CouchDB. Emulating IndexedDB's collation would at least require preprocessing away `Buffer` data and `undefined` values and normalizing for the es6 types.
 
 
 ## License
