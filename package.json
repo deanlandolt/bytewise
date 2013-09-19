@@ -5,10 +5,10 @@
   "main": "bytewise.js",
   "dependencies": {
     "es6-shim": "~0.8",
-    "bops": "~0.0.6"
+    "bops": "0.0.6"
   },
   "devDependencies": {
-    "tape": "1.0",
+    "tape": "~1.0",
     "typewise": "~0.5"
   },
   "scripts": {
