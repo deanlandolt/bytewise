@@ -201,10 +201,10 @@ function decode(buffer) {
   // Structured types
   if (~structuredTypes.indexOf(type)) {
     var result = parseHead(buffer);
-    if (bops.readUInt8(result, 1) !== buffer.length) {
+    if (result[1] !== buffer.length) {
       throw new Error('List deserialization fail: ' + bops.readUInt8(result, 1) + '!=' + bops.length(buffer));
     }
-    return bops.readUInt8(result, 0);
+    return result[0];
   }
 
 }
@@ -314,8 +314,8 @@ function parseHead(buffer) {
   var next;
   while ((next = bops.readUInt8(buffer, index)) !== 0) {
     var result = parseHead(bops.subarray(buffer, index));
-    list.push(bops.readUInt8(result, 0));
-    index += bops.readUInt8(result, 1);
+    list.push(result[0]);
+    index += result[1];
     if (index >= buffer.length) throw new Error('No ending byte found for nested list');
   }
   return [ structure(type, list), index + 1 ];
