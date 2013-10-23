@@ -1,6 +1,6 @@
 {
   "name": "bytewise",
-  "version": "0.7.0-pre",
+  "version": "0.6.1",
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "bytewise.js",
   "dependencies": {
