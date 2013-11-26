@@ -1,9 +1,9 @@
 
-var bytewise = require('../')
-var bytewiseHex = require('../hex')
-var typewise = require('typewise')
-var test = require('tape')
-var bops = require('bops')
+var bytewise = require('../');
+var bytewiseHex = require('../hex');
+var typewise = require('typewise');
+var test = require('tape');
+var bops = require('bops');
 
 var example = [
   null,
@@ -11,41 +11,37 @@ var example = [
   true,
   4,
   'hello',
-  ['foo', 'bar', 'baz'],
-  {whatever: true},
-  //this breaks  
-  //  {k: 'X', b: true}
-].sort(typewise.compare)
+  [ 'foo', 'bar', 'baz' ],
+  { k: 'X', b: false },
+  { k: 'X', b: true },
+  { whatever: false },
+  { whatever: true }
+].sort(typewise.compare);
 
 test('sorts with same order when encoded', function (t) {
-
-  var sorted = 
-  example
+  var sorted = example
     .map(bytewise.encode)
     .sort(bytewise.compare)
-    .map(bytewise.decode)
+    .map(bytewise.decode);
 
   t.equal(
     bops.to(bytewise.encode(sorted),'hex'),
     bops.to(bytewise.encode(example),'hex')
-  )
-  
-  t.end()
+  );
+  t.end();
 })
 
 test('sorts with same order when hex encoded', function (t) {
-
-  var sorted = 
-  example
+  var sorted = example
     .map(bytewiseHex.encode)
     .sort()
-    .map(bytewiseHex.decode)
+    .map(bytewiseHex.decode);
 
   t.equal(
     bops.to(bytewise.encode(sorted),'hex'),
     bops.to(bytewise.encode(example),'hex')
-  )
-  t.end()
+  );
+  t.end();
 })
 
 
