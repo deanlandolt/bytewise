@@ -1,8 +1,6 @@
 'use strict';
-require('es6-shim');
 
 var bops = require('bops')
-// FIXME fix iterating keys in --harmony maps and sets
 
 var compare = function(a, b) {
   var result;
@@ -48,10 +46,8 @@ var DATE_PRE_EPOCH = 0x51; // packed identically to a NEGATIVE_NUMBER
 var DATE_POST_EPOCH = 0x52; // packed identically to a POSITIVE_NUMBER
 var BUFFER = 0x60;
 var STRING = 0x70;
-var SET = 0x90; // packed as array with members sorted and deduped
 var ARRAY = 0xa0; // escapes nested types with bit shifting where necessary to maintain order
 var OBJECT = 0xb0; // just like couchdb member order is preserved and matters for collation
-var MAP = 0xc0; // just like couchdb member order is preserved and matters for collation
 var REGEXP = 0xd0; // packed as tuple of two strings, the end being flags
 var FUNCTION = 0xe0; // packed as array, revived by safe eval in an isolated environment (if available)
 var UNDEFINED = 0xf0;
@@ -59,13 +55,13 @@ var UNDEFINED = 0xf0;
 
 
 var flatTypes = [ BUFFER, STRING ];
-var structuredTypes = [ ARRAY, OBJECT, MAP, SET, FUNCTION ];
+var structuredTypes = [ ARRAY, OBJECT, FUNCTION, REGEXP ];
 var nullaryTypes = [ NULL, FALSE, TRUE, NEGATIVE_INFINITY, POSITIVE_INFINITY, UNDEFINED ];
-var fixedTypes = {};
-fixedTypes[NEGATIVE_NUMBER] = 8;
-fixedTypes[POSITIVE_NUMBER] = 8;
-fixedTypes[DATE_PRE_EPOCH] = 8;
-fixedTypes[DATE_POST_EPOCH] = 8;
+var fixedSizeTypes = {};
+fixedSizeTypes[NEGATIVE_NUMBER] = 8;
+fixedSizeTypes[POSITIVE_NUMBER] = 8;
+fixedSizeTypes[DATE_PRE_EPOCH] = 8;
+fixedSizeTypes[DATE_POST_EPOCH] = 8;
 
 
 function encode(source) {
@@ -128,26 +124,6 @@ function encode(source) {
     return tag(ARRAY, encodeList(value));
   }
 
-  // Map
-  if (value instanceof Map) {
-    // Packs into an array, e.g. [ k1, v1, k2, v2, ... ]
-    var items = [];
-    getCollectionKeys(value).forEach(function(key) {
-      items.push(key);
-      items.push(value.get(key));
-    });
-    return tag(MAP, encodeList(items));
-  }
-
-  // Set
-  if (value instanceof Set) {
-    var set = getCollectionKeys(value);
-    // encode, sort, and then decode the result array
-    set = decode(set.map(encode).sort(compare));
-    // TODO we should be able to build a list by concatenating buffers -- bypass this decode/encodeList dance
-    return tag(SET, encodeList(set));
-  }
-
   // Object
   if (typeof value === 'object' && Object.prototype.toString.call(value) === '[object Object]') {
     // Packs into an array, e.g. [ k1, v1, k2, v2, ... ]
@@ -182,7 +158,7 @@ function decode(buffer) {
 
   // Fixed size types
   var chunk = bops.subarray(buffer, 1);
-  var chunkSize = fixedTypes[type];
+  var chunkSize = fixedSizeTypes[type];
   if (chunkSize) {
     if (chunk.length !== chunkSize) throw new Error('Invalid size for buffer: ' + buffer);
 
@@ -292,7 +268,7 @@ function parseHead(buffer) {
   // Nullary
   if (~nullaryTypes.indexOf(type)) return [ decode(bops.from([ type ])), 1 ];
   // Fixed
-  var size = fixedTypes[type];
+  var size = fixedSizeTypes[type];
   if (size++) return [ decode(bops.subarray(buffer, 0, size)), size ];
   // Flat
   var index;
@@ -334,20 +310,6 @@ function structure(type, list) {
     }
     return object;
   }
-  if (type === MAP) {
-    var map = new Map();
-    for (i = 0, end = list.length; i < end; ++i) {
-      map.set(list[i], list[++i]);
-    }
-    return map;
-  }
-  if (type === SET) {
-    var set = new Set();
-    for (i = 0, end = list.length; i < end; ++i) {
-      set.add(list[i]);
-    }
-    return set;
-  }
   throw new Error('Unknown type: ' + type);
 }
 
@@ -358,26 +320,6 @@ function invert(buffer) {
     bytes.push(~bops.readUInt8(buffer, i));
   }
   return bops.from(bytes);
-}
-
-
-function _bastardizedIterate(iterator) {
-  // FIXME update es6-shim to latest iteration spec and remove this garbage
-  var items = [];
-  var next;
-  try {
-    while (next = iterator.next()) {
-      items.push(next)
-    }
-  }
-  catch (e) {}
-  return items;
-}
-
-function getCollectionKeys(collection) {
-  // FIXME support --harmony collection iteration
-  if (!typeof collection.keys === 'function') return [];
-  return _bastardizedIterate(collection.keys());
 }
 
 exports.encode = encode;

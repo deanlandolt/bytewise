@@ -4,12 +4,11 @@
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "bytewise.js",
   "dependencies": {
-    "es6-shim": "~0.8",
     "bops": "~0.1.0"
   },
   "devDependencies": {
     "tape": "~1.0",
-    "typewise": "~0.5"
+    "typewise": "~0.7"
   },
   "scripts": {
     "test": "tape test",
