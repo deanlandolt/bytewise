@@ -29,6 +29,9 @@
   "author": "Dean Landolt <dean@deanlandolt.com>",
   "license": "MIT",
   "readmeFilename": "README.md",
+  "browser": {
+    "typewise": false
+  },
   "testling": {
     "files": "test/*.js",
     "browsers": [
