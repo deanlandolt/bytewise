@@ -1,6 +1,7 @@
 'use strict';
 
-var bops = require('bops')
+var bops = require('bops');
+
 
 var compare = function(a, b) {
   var result;
@@ -70,7 +71,6 @@ function encode(source) {
   if (source === null) return tag(NULL);
 
   // Unbox possible natives
-
   var value = source != null && source.valueOf ? source.valueOf() : source;
   var type;
 
@@ -87,7 +87,7 @@ function encode(source) {
     // Normalize -0 values to 0
     if (Object.is(value, -0)) value = 0;
     type = value < 0 ? DATE_PRE_EPOCH : DATE_POST_EPOCH;
-    return tag(type, encodeNumber(value));
+    return tag(type, encodeNumber(value), 8);
   }
 
   if (typeof value === 'number') {
@@ -96,7 +96,7 @@ function encode(source) {
     // Normalize -0 values to 0
     if (Object.is(value, -0)) value = 0;
     type = value < 0 ? NEGATIVE_NUMBER : POSITIVE_NUMBER;
-    return tag(type, encodeNumber(value));
+    return tag(type, encodeNumber(value), 8);
   }
 
   if (bops.is(value)) {
@@ -175,7 +175,7 @@ function decode(buffer) {
   if (type === STRING) return bops.to(chunk, 'utf8');
 
   // Structured types
-  if (~structuredTypes.indexOf(type)) {
+  if (structuredTypes.indexOf(type) >= 0) {
     var result = parseHead(buffer);
     if (result[1] !== buffer.length) {
       throw new Error('List deserialization fail: ' + bops.readUInt8(result, 1) + '!=' + bops.length(buffer));
@@ -185,13 +185,21 @@ function decode(buffer) {
 
 }
 
+// TODO figure out how to do proper subclassing with bops
+function patchBuffer(buffer) {
+  var _toString = buffer.toString;
+  buffer.toString = function (encoding) {
+    return _toString.apply(buffer, encoding ? arguments : [ 'hex' ]);
+  };
+  return buffer;
+}
 
-function tag(type, buffer) {
+function tag(type, buffer, length) {
   // Just return tag byte for nullary types (no buffer provided)
   type = bops.from([ type ]);
-  if (!buffer) return type;
-  // Prepend a type tag byte to buffer
-  return bops.join([ type, buffer ]);
+  if (!buffer) return patchBuffer(type);
+  // Join type tag with buffer, passing along a length hint when provided
+  return patchBuffer(bops.join([ type, buffer ], typeof length === 'number' ? length + 1 : undefined));
 }
 
 function encodeNumber(value) {
