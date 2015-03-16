@@ -1,18 +1,17 @@
 {
   "name": "bytewise",
-  "version": "0.8.0",
+  "version": "0.8.1-pre",
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "bytewise.js",
   "dependencies": {
-    "bops": "~0.1.0"
+    "bops": "~0.1"
   },
   "devDependencies": {
     "tape": "~1.0",
-    "typewise": "~0.7"
+    "typewise": "~0.8"
   },
   "scripts": {
-    "test": "tape test",
-    "bench": "node bench"
+    "test": "tape test"
   },
   "repository": {
     "type": "git",
