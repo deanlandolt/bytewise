@@ -142,7 +142,7 @@ function encode(source) {
 
 function decode(buffer) {
 
-  var type = bops.readUInt8(buffer, 0);
+  var type = buffer[0];
 
   // Nullary types
   if (~nullaryTypes.indexOf(type)) {
@@ -178,7 +178,7 @@ function decode(buffer) {
   if (structuredTypes.indexOf(type) >= 0) {
     var result = parseHead(buffer);
     if (result[1] !== buffer.length) {
-      throw new Error('List deserialization fail: ' + bops.readUInt8(result, 1) + '!=' + bops.length(buffer));
+      throw new Error('List deserialization fail: ' + result[1] + '!=' + bops.length(buffer));
     }
     return result[0];
   }
@@ -199,7 +199,7 @@ function tag(type, buffer, length) {
   type = bops.from([ type ]);
   if (!buffer) return patchBuffer(type);
   // Join type tag with buffer, passing along a length hint when provided
-  return patchBuffer(bops.join([ type, buffer ], typeof length === 'number' ? length + 1 : undefined));
+  return patchBuffer(bops.join([ type, buffer ], typeof length === 'number' ? length + 1 : void 0));
 }
 
 function encodeNumber(value) {
@@ -225,7 +225,7 @@ function encodeList(items) {
   var chunk;
   for (var i = 0, end = items.length; i < end; ++i) {
     chunk = encode(items[i]);
-    var type = bops.readUInt8(chunk, 0);
+    var type = chunk[0];
     // We need to escape a few bytes in string and buffer types to prevent confusion with the end byte
     if (~flatTypes.indexOf(type)) chunk = flatEscape(chunk);
     buffers.push(chunk);
@@ -258,11 +258,11 @@ function flatUnescape(buffer) {
   var b, bytes = [];
   // Don't escape last byte
   for (var i = 0, end = buffer.length; i < end; ++i) {
-    b = bops.readUInt8(buffer, i);
+    b = buffer[i];
     // If low-byte escape tag use the following byte minus 1
-    if (b === 0x01) bytes.push(bops.readUInt8(buffer, ++i) - 1);
+    if (b === 0x01) bytes.push(buffer[++i] - 1);
     // If high-byte escape tag use the following byte plus 1
-    else if (b === 0xfe) bytes.push(bops.readUInt8(buffer, ++i) + 1);
+    else if (b === 0xfe) bytes.push(buffer[++i] + 1);
     // Otherwise no unescapement needed
     else bytes.push(b);
   }
@@ -272,7 +272,7 @@ function flatUnescape(buffer) {
 
 function parseHead(buffer) {
   // Parses and returns the first type on the buffer and the total bytes consumed
-  var type = bops.readUInt8(buffer, 0);
+  var type = buffer[0];
   // Nullary
   if (~nullaryTypes.indexOf(type)) return [ decode(bops.from([ type ])), 1 ];
   // Fixed
@@ -284,7 +284,7 @@ function parseHead(buffer) {
   if (~flatTypes.indexOf(type)) {
     // Find end byte
     for (index = 1, end = buffer.length; index < end; ++index) {
-      if (bops.readUInt8(buffer, index) === 0x00) break;
+      if (buffer[index] === 0x00) break;
     }
     if (index >= buffer.length) throw new Error('No ending byte found for list');
     var chunk = flatUnescape(bops.subarray(buffer, 0, index));
@@ -296,7 +296,7 @@ function parseHead(buffer) {
   var list = [];
   index = 1;
   var next;
-  while ((next = bops.readUInt8(buffer, index)) !== 0) {
+  while ((next = buffer[index]) !== 0) {
     var result = parseHead(bops.subarray(buffer, index));
     list.push(result[0]);
     index += result[1];
@@ -325,7 +325,7 @@ function structure(type, list) {
 function invert(buffer) {
   var bytes = [];
   for (var i = 0, end = buffer.length; i < end; ++i) {
-    bytes.push(~bops.readUInt8(buffer, i));
+    bytes.push(~buffer[i]);
   }
   return bops.from(bytes);
 }
