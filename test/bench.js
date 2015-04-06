@@ -1,5 +1,4 @@
-'use strict';
-var bytewise = require('../bytewise');
+var bytewise = require('../');
 
 // This is just a simple little benchmark to compare against JSON
 function run(name, fn, value, total) {

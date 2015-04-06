@@ -1,9 +1,8 @@
-
-var bytewise = require('../');
-var bytewiseHex = require('../hex');
-var typewise = require('typewise');
-var test = require('tape');
-var bops = require('bops');
+var bytewise = require('../')
+var typewise = require('typewise')
+var util = require('typewise-core/test/util')
+var test = require('tape')
+var bops = require('bops')
 
 var expected = [
   null,
@@ -19,39 +18,32 @@ var expected = [
   { k: 'X', c: true, d: null },
   { whatever: false },
   { whatever: true }
-];
-var sorted = expected.sort(typewise.compare);
+]
+
+var sample = util.shuffle(expected.slice()).sort(typewise.compare)
+var sorted = expected.slice().sort(typewise.compare)
 
 test('sorts in expected order', function (t) {
   t.equal(
     bops.to(bytewise.encode(sorted), 'hex'),
     bops.to(bytewise.encode(expected), 'hex')
-  );
-  t.end();
-});
+  )
+  t.equal(
+    bops.to(bytewise.encode(sample), 'hex'),
+    bops.to(bytewise.encode(expected), 'hex')
+  )
+  t.end()
+})
 
 test('sorts with same order when encoded', function (t) {
-  var encoded = expected
+  var decoded = expected
     .map(bytewise.encode)
     .sort(bytewise.compare)
     .map(bytewise.decode);
 
   t.equal(
-    bops.to(bytewise.encode(encoded), 'hex'),
+    bops.to(bytewise.encode(decoded), 'hex'),
     bops.to(bytewise.encode(expected), 'hex')
-  );
-  t.end();
-});
-
-test('sorts with same order when hex encoded', function (t) {
-  var encoded = expected
-    .map(bytewiseHex.encode)
-    .sort()
-    .map(bytewiseHex.decode);
-
-  t.equal(
-    bops.to(bytewise.encode(encoded), 'hex'),
-    bops.to(bytewise.encode(expected), 'hex')
-  );
-  t.end();
-});
+  )
+  t.end()
+})

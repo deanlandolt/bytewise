@@ -1,14 +1,15 @@
 {
   "name": "bytewise",
-  "version": "0.8.1-pre",
+  "version": "1.0.0-pre",
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
-  "main": "bytewise.js",
+  "main": "index.js",
   "dependencies": {
-    "bops": "~0.1"
+    "bops": "~0.1",
+    "typewise": "1.0.0-pre"
   },
   "devDependencies": {
     "tape": "~1.0",
-    "typewise": "~0.8"
+    "typewise-core": "https://github.com/deanlandolt/typewise-core/tarball/master"
   },
   "scripts": {
     "test": "tape test"
