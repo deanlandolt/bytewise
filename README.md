@@ -18,25 +18,20 @@ This is the top level order of the various structures that may be encoded:
 * `true`
 * `Number` (numeric)
 * `Date` (numeric, epoch offset)
-* `Buffer`, `Uint8Array` (bitwise)
+* `Buffer` (bitwise)
 * `String` (lexicographic)
-* `Set` (componentwise with elements sorted)
 * `Array` (componentwise)
-* `Object` (componentwise string-keyed key/value pairs)
-* `Map` (componentwise key/value pairs)
-* `RegExp` (stringified lexicographic)
-* `Function` (stringified lexicographic)
 * `undefined`
 
 
 These specific structures can be used to serialize the vast majority of javascript values in a way that can be sorted in an efficient, complete and sensible manner. Each value is prefixed with a type tag, and we do some bit munging to encode our values in such a way as to carefully preserve the desired sort behavior, even in the presence of structural nested.
 
-For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag. The same can be said of `null` and `undefined`, and the boolean values `false`, `true`. `Date` instances are stored just like `Number` instances -- but as in IndexedDB -- `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types -- `Array` and `Object`, along with the additional types defined by es6: `Map` and `Set`. We can even serialize `Function` values and (with the optional `typewise` dependency) revive them in an isolated [Secure ECMAScript](https://code.google.com/p/es-lab/wiki/SecureEcmaScript) context where they are powerless to do anything but calculate.
+For example, negative numbers are stored as a different *type* from positive numbers, with its sign bit stripped and its bytes inverted to ensure numbers with a larger magnitude come first. `Infinity` and `-Infinity` can also be encoded -- they are *nullary* types, encoded using just their type tag. The same can be said of `null` and `undefined`, and the boolean values `false`, `true`. `Date` instances are stored just like `Number` instances -- but as in IndexedDB -- `Date` sorts after `Number` (including `Infinity`). `Buffer` data can be stored in the raw, and is sorted before `String` data. Then come the collection types (just `Array` for the time being).
 
 
 ## Unsupported Structures
 
-This serialization accommodates a wide range of javascript structures, but it is not exhaustive. Objects or arrays with reference cycles cannot be serialized. `NaN` is also illegal anywhere in a serialized value -- its presence very likely indicates of an error, but more importantly sorting on `NaN` is nonsensical by definition. (Similarly we may want to reject objects which are instances of `Error`.) Invalid `Date` objects are also illegal. Since `WeakMap` and `WeakSet` objects cannot be enumerated they are impossible to serialize. Attempts to serialize any values which include these structures should throw a `TypeError`.
+This serialization accommodates a wide range of javascript structures, but it is not exhaustive. Complex structures with reference cycles cannot be serialized. `NaN` is also illegal anywhere in a serialized value -- its presence very likely indicates of an error, but more importantly sorting on `NaN` is nonsensical by definition. Objects which are instances of `Error` are also rejected, as well as `Invalid Date` objects. If and when we support more complex collection types, `WeakMap` and `WeakSet` objects will never be serializable as they cannot be enumerated. Attempts to serialize any values which include these structures will throw an error.
 
 
 ## Usage
@@ -102,7 +97,8 @@ unsupported structure is provided.
   assert.equal(encode([ [ 'foo', true ], 'bar' ]).toString('binary'), '\xa0\xa0\pfoo\x00\x21\x00\pbar\x00\x00');
 
   // Objects are just string-keyed maps, stored like arrays: [ k1, v1, k2, v2, ... ]
-  assert.equal(encode({ foo: true, bar: 'baz' }).toString('binary'), '\xb0pfoo\x00\x21\pbar\x00\pbaz\x00\x00');
+  // NYI in this version
+  // assert.equal(encode({ foo: true, bar: 'baz' }).toString('binary'), '\xb0pfoo\x00\x21\pbar\x00\pbaz\x00\x00');
   
   ```
 
@@ -142,7 +138,7 @@ unsupported structure is provided.
     -Infinity,
     -1.1,
     42,
-    new Date('2000-01-01T00:00:00Z'),
+    new Date('2000-01-01Z'),
     '',
     'foo √',
     [],
@@ -170,7 +166,7 @@ This is another really basic and oft-needed amenity that isn't very easy out of 
 
 ### Document storage
 
-It may be reasonably fast to encode and decode, but `JSON.stringify` is totally useless for storing objects as document records in a way that is of any use for range queries, where LevelDB and its ilk excel. This serialization allows you to build indexes on top of your documents, as well as expanding on the range of serializable types available in JSON.
+It may be reasonably fast to encode and decode, but `JSON.stringify` isn't terribly useful or objects as document records in a way that is useful for range queries, where LevelDB and its ilk excel. This serialization allows you to build indexes on top of your documents, as well as expanding on the range of serializable types available from JSON.
 
 ### Multilevel language-sensitive collation
 
@@ -182,7 +178,7 @@ Full-text indexing is a natural extension of the language-sensitive collation us
 
 ### CouchDB-style "joins"
 
-Build a view that colocates related subrecords, taking advantage of component-wise sorting of arrays to interleave them. This is a technique I first saw [employed by CouchDB](http://www.cmlenz.net/archives/2007/10/couchdb-joins). More recently [Akiban](http://www.akiban.com/) has formalized this concept of [table grouping](http://blog.akiban.com/how-does-table-grouping-compare-to-sql-server-indexed-views/) and brought it the SQL world. Our collation extends naturally to their idea of [hierarchical keys](http://blog.akiban.com/introducing-hkey/).
+Build a view that colocates related subrecords, taking advantage of component-wise sorting of arrays to interleave them. This is a technique [employed by CouchDB](http://www.cmlenz.net/archives/2007/10/couchdb-joins), leveraging its very similar collation semantics to keep related grouped together hierarchically. More recently [Akiban](http://www.akiban.com/) has formalized this concept of a [table grouping](http://blog.akiban.com/how-does-table-grouping-compare-to-sql-server-indexed-views/) and brought it the SQL world. Again, bytewise sorting extends naturally to their notions of [hierarchical keys](http://blog.akiban.com/introducing-hkey/).
 
 ### Emulating other systems
 

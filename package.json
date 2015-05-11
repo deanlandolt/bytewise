@@ -1,18 +1,10 @@
 {
   "name": "bytewise",
-  "version": "1.0.0-pre",
+  "version": "1.0.0",
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "index.js",
-  "dependencies": {
-    "bops": "~0.1",
-    "typewise": "1.0.0-pre"
-  },
-  "devDependencies": {
-    "tape": "~1.0",
-    "typewise-core": "https://github.com/deanlandolt/typewise-core/tarball/master"
-  },
   "scripts": {
-    "test": "tape test"
+    "test": "tape test | faucet"
   },
   "repository": {
     "type": "git",
@@ -20,32 +12,27 @@
   },
   "keywords": [
     "binary",
+    "sort",
     "collation",
     "serialization",
     "leveldb",
-    "couchdb",
     "indexeddb"
   ],
   "author": "Dean Landolt <dean@deanlandolt.com>",
   "license": "MIT",
-  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/deanlandolt/bytewise/issues"
+  },
+  "homepage": "https://github.com/deanlandolt/bytewise",
   "browser": {
     "typewise": false
   },
-  "testling": {
-    "files": "test/*.js",
-    "browsers": [
-      "ie/8..latest",
-      "firefox/17..latest",
-      "firefox/nightly",
-      "chrome/22..latest",
-      "chrome/canary",
-      "opera/12..latest",
-      "opera/next",
-      "safari/5.1..latest",
-      "ipad/6.0..latest",
-      "iphone/6.0..latest",
-      "android-browser/4.2..latest"
-    ]
+  "dependencies": {
+    "bytewise-core": "^1.1",
+    "typewise": "^1.1"
+  },
+  "devDependencies": {
+    "faucet": "0.0.1",
+    "tape": "^1.0"
   }
 }
