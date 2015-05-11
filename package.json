@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "bytewise-core": "^1.1",
-    "typewise": "^1.1"
+    "typewise": "^1.0"
   },
   "devDependencies": {
     "faucet": "0.0.1",
