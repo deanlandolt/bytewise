@@ -1,12 +1,13 @@
 bytewise
 ========
 
-A binary serialization that allows efficient sorting of arbitrarily complex data structures in a way that respects the [typewise](https://github.com/deanlandolt/typewise) sort order.
+Binary serialization of arbitrarily complex structures that sort element-wise
 
-[![build status](https://secure.travis-ci.org/deanlandolt/bytewise.png)](http://travis-ci.org/deanlandolt/bytewise)
-[![testling badge](https://ci.testling.com/deanlandolt/bytewise.png)](https://ci.testling.com/deanlandolt/bytewise)
+[![build status](https://travis-ci.org/deanlandolt/bytewise.svg?branch=master)](https://travis-ci.org/deanlandolt/bytewise)
 
-This library defines a total order of possible data structures allowed in a keyspace and a binary encoding which sorts bytewise in this order. The ordering is a superset of both the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This serialization makes it easy to take advantage of the benefits of structural indexing on systems with fast but naïve binary indexing.
+Allows efficient comparison of a variety of useful data structures in a way that respects the sort order defined by [typewise](https://github.com/deanlandolt/typewise).
+
+The [bytewise-core](https://github.com/deanlandolt/bytewise-core) library defines a total order for well-structured keyspaces in key value stores. The ordering is a superset of the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This serialization makes it easy to take advantage of the benefits of structured indexing in systems with fast but naïve binary indexing (key/value databases).
 
 
 ## Order of Supported Structures
