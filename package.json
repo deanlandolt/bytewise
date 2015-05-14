@@ -24,9 +24,6 @@
     "url": "https://github.com/deanlandolt/bytewise/issues"
   },
   "homepage": "https://github.com/deanlandolt/bytewise",
-  "browser": {
-    "typewise": false
-  },
   "dependencies": {
     "bytewise-core": "^1.1",
     "typewise": "^1.0"
@@ -34,5 +31,18 @@
   "devDependencies": {
     "faucet": "0.0.1",
     "tape": "^1.0"
+  },
+  "testling": {
+    "files": "test/",
+    "browsers": [
+      "ie/6..latest",
+      "chrome/22..latest",
+      "firefox/16..latest",
+      "safari/latest",
+      "opera/11.0..latest",
+      "iphone/6",
+      "ipad/6",
+      "android-browser/latest"
+    ]
   }
 }
