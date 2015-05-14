@@ -6,7 +6,7 @@ Binary serialization of arbitrarily complex structures that sort element-wise
 [![build status](https://travis-ci.org/deanlandolt/bytewise.svg?branch=master)](https://travis-ci.org/deanlandolt/bytewise)
 
 [![browser support](https://ci.testling.com/deanlandolt/bytewise.png)
-](https://ci.testling.com/$deanlandolt/bytewise)
+](https://ci.testling.com/deanlandolt/bytewise)
 
 Allows efficient comparison of a variety of useful data structures in a way that respects the sort order defined by [typewise](https://github.com/deanlandolt/typewise).
 
