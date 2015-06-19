@@ -25,11 +25,11 @@
   },
   "homepage": "https://github.com/deanlandolt/bytewise",
   "dependencies": {
-    "bytewise-core": "^1.1",
-    "typewise": "^1.0"
+    "bytewise-core": "^1.2.2",
+    "typewise": "^1.0.3"
   },
   "devDependencies": {
     "faucet": "0.0.1",
-    "tape": "^1.0"
+    "tape": "^1.0.0"
   }
 }
