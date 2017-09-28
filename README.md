@@ -186,6 +186,15 @@ Build a view that colocates related subrecords, taking advantage of component-wi
 Clients that wish to employ a subset of the full range of possible types above can preprocess values to coerce them into the desired simpler forms before serializing. For instance, if you were to build CouchDB-style indexing you could round-trip values through a `JSON` encode cycle (to get just the subset of types supported by CouchDB) before passing to `encode`, resulting in a collation that is identical to CouchDB. Emulating IndexedDB's collation would at least require preprocessing away `Buffer` data and `undefined` values and normalizing for the es6 types.
 
 
+## Typescript
+
+This package comes with typings and can be imported with either:
+
+```ts 
+import {encode, decode, compare} from 'bytewise';
+import * as bytewise from 'bytewise';
+```
+
 ## Issues
 
 Issues should be reported [here](https://github.com/deanlandolt/bytewise/issues).
