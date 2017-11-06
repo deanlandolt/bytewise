@@ -9,6 +9,10 @@ Allows efficient comparison of a variety of useful data structures in a way that
 
 The [bytewise-core](https://github.com/deanlandolt/bytewise-core) library defines a total order for well-structured keyspaces in key value stores. The ordering is a superset of the sorting algorithm defined by [IndexedDB](http://www.w3.org/TR/IndexedDB/#key-construct) and the one defined by [CouchDB](http://wiki.apache.org/couchdb/View_collation). This serialization makes it easy to take advantage of the benefits of structured indexing in systems with fast but naïve binary indexing (key/value databases).
 
+## NB: use [`charwise`](https://github.com/dominictarr/charwise) if possible
+
+The [`charwise`](https://github.com/dominictarr/charwise) library gives you almost everything `bytewise` does, but much faster, and it's much more actively developed/maintained. You should probably try this first.
+
 
 ## Order of Supported Structures
 
