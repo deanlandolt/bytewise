@@ -3,6 +3,7 @@
   "version": "1.1.0",
   "description": "Binary serialization which sorts bytewise for arbirarily complex data structures",
   "main": "index.js",
+  "typings": "index.d.ts",
   "scripts": {
     "test": "tape test | faucet"
   },
@@ -29,6 +30,7 @@
     "typewise": "^1.0.3"
   },
   "devDependencies": {
+    "@types/node": "^8.0.31",
     "faucet": "0.0.1",
     "tape": "^4.2.2"
   }
